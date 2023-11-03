@@ -1,4 +1,4 @@
-use dynamo_stream::{AppState, routes::root};
+use dynamo_stream::{routes::root, AppState};
 use std::sync::{Arc, Mutex};
 
 #[tokio::main]

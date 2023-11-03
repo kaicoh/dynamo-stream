@@ -1,10 +1,10 @@
+use crate::{AppState, Subscription};
 use axum::{
     extract::{Json, State},
-    routing::{get, post},
     response::IntoResponse,
+    routing::{get, post},
     Router,
 };
-use crate::{AppState, Subscription};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
@@ -14,9 +14,7 @@ struct Request {
     url: String,
 }
 
-async fn retrieve(
-    State(state): State<Arc<Mutex<AppState>>>,
-) -> impl IntoResponse {
+async fn retrieve(State(state): State<Arc<Mutex<AppState>>>) -> impl IntoResponse {
     let state = state.lock().unwrap();
     axum::response::Json(state.clone())
 }

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::{HashMap, hash_map::Iter};
+use std::collections::{hash_map::Iter, HashMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Subscription {
@@ -9,9 +9,7 @@ pub struct Subscription {
 
 impl Subscription {
     pub fn new<T: Into<String>>(url: T) -> Self {
-        Self {
-            url: url.into()
-        }
+        Self { url: url.into() }
     }
 
     pub fn url(&self) -> &str {
@@ -41,10 +39,7 @@ impl AppState {
         let arn: String = arn.into();
 
         if !self.include(&arn, &config) {
-            let mut values = self.configs
-                .get(&arn)
-                .unwrap_or(&Vec::new())
-                .to_vec();
+            let mut values = self.configs.get(&arn).unwrap_or(&Vec::new()).to_vec();
             values.push(config);
             self.configs.insert(arn, values);
         }
@@ -58,10 +53,14 @@ impl AppState {
     fn include(&self, arn: &str, config: &Subscription) -> bool {
         self.configs
             .get(arn)
-            .map(|values| {
-                values.iter().any(|v| v == config)
-            })
+            .map(|values| values.iter().any(|v| v == config))
             .unwrap_or(false)
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -95,10 +94,7 @@ mod tests {
 
         let values = state.configs.get("key");
         assert!(values.is_some());
-        assert_eq!(
-            values.unwrap().to_vec(),
-            vec![Subscription::new("val_0")]
-        );
+        assert_eq!(values.unwrap().to_vec(), vec![Subscription::new("val_0")]);
     }
 
     #[test]
@@ -115,17 +111,11 @@ mod tests {
         for item in iterator {
             match item.0.as_str() {
                 "key_0" => {
-                    assert_eq!(
-                        item.1,
-                        &from_slice(&["val_0", "val_1"]),
-                    );
-                },
+                    assert_eq!(item.1, &from_slice(&["val_0", "val_1"]),);
+                }
                 "key_1" => {
-                    assert_eq!(
-                        item.1,
-                        &from_slice(&["val_2", "val_3"]),
-                    );
-                },
+                    assert_eq!(item.1, &from_slice(&["val_2", "val_3"]),);
+                }
                 _ => {
                     unreachable!();
                 }
