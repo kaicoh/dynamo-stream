@@ -4,14 +4,17 @@ mod record;
 use client::{DynamoStreamClient, StreamClient};
 pub use record::{Record, Records};
 
-use super::{Result, Subscriptions};
-use aws_sdk_dynamodbstreams::{types::ShardIteratorType, Client};
+use super::{Result, Subscriptions, ENV_DYNAMODB_ENDPOINT_URL};
+use aws_sdk_dynamodbstreams::types::ShardIteratorType;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
 
 pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
-    let config = aws_config::load_from_env().await;
-    let client = DynamoStreamClient::new(Client::new(&config));
+    let endpoint_url = std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok();
+    let client = DynamoStreamClient::builder()
+        .await
+        .endpoint_url(endpoint_url)
+        .build();
 
     loop {
         sleep(Duration::from_secs(3)).await;

@@ -2,19 +2,19 @@ use super::super::Result;
 use super::Record;
 
 use async_trait::async_trait;
-use aws_sdk_dynamodbstreams::{types::ShardIteratorType, Client};
+use aws_sdk_dynamodbstreams::{config::Builder as ConfigBuilder, types::ShardIteratorType, Client};
 
 pub struct DescribeStreamResult {
     pub shard_ids: Box<dyn Iterator<Item = String> + Send + Sync>,
     pub last_evaluated_shard_id: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct GetShardIteratorResult {
     pub shard_iterator: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct GetRecordsResult {
     pub next_shard_iterator: Option<String>,
     pub records: Vec<Record>,
@@ -46,6 +46,10 @@ pub struct DynamoStreamClient {
 impl DynamoStreamClient {
     pub fn new(client: Client) -> Self {
         Self { client }
+    }
+
+    pub async fn builder() -> DynamoStreamClientBuilder {
+        DynamoStreamClientBuilder::new().await
     }
 }
 
@@ -119,5 +123,33 @@ impl StreamClient for DynamoStreamClient {
             records,
             next_shard_iterator: output.next_shard_iterator,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct DynamoStreamClientBuilder {
+    builder: ConfigBuilder,
+}
+
+impl DynamoStreamClientBuilder {
+    pub async fn new() -> Self {
+        let config = aws_config::load_from_env().await;
+        let builder = ConfigBuilder::from(&config);
+        Self { builder }
+    }
+
+    pub fn endpoint_url<T: Into<String>>(self, url: Option<T>) -> Self {
+        if let Some(url) = url {
+            let builder = self.builder.endpoint_url(url.into());
+            Self { builder }
+        } else {
+            self
+        }
+    }
+
+    pub fn build(self) -> DynamoStreamClient {
+        let config = self.builder.build();
+        let client = Client::from_conf(config);
+        DynamoStreamClient::new(client)
     }
 }
