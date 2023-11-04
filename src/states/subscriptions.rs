@@ -4,30 +4,24 @@ use std::collections::{hash_map::Iter, HashMap};
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Subscription {
     /// The url post to when accepting the DynamoDB Stream
-    url: String,
+    pub url: String,
 }
 
 impl Subscription {
     pub fn new<T: Into<String>>(url: T) -> Self {
         Self { url: url.into() }
     }
-
-    pub fn url(&self) -> &str {
-        self.url.as_str()
-    }
 }
 
 /// A HashMap whose key is DynamoDB Stream Arn and whose value is a list of configurations
-/// to inform to the destinations.
-type Subscriptions = HashMap<String, Vec<Subscription>>;
-
+/// for each subscription.
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
-pub struct AppState {
-    configs: Subscriptions,
+pub struct Subscriptions {
+    configs: HashMap<String, Vec<Subscription>>,
 }
 
-impl AppState {
+impl Subscriptions {
     pub fn new() -> Self {
         Self {
             configs: HashMap::new(),
@@ -58,7 +52,7 @@ impl AppState {
     }
 }
 
-impl Default for AppState {
+impl Default for Subscriptions {
     fn default() -> Self {
         Self::new()
     }
@@ -70,10 +64,10 @@ mod tests {
 
     #[test]
     fn it_adds_string_using_isert_method() {
-        let mut configs: Subscriptions = HashMap::new();
+        let mut configs: HashMap<String, Vec<Subscription>> = HashMap::new();
         configs.insert("key".into(), from_slice(&["val_0"]));
 
-        let mut state = AppState { configs };
+        let mut state = Subscriptions { configs };
         state.insert("key", Subscription::new("val_1"));
 
         let values = state.configs.get("key");
@@ -86,10 +80,10 @@ mod tests {
 
     #[test]
     fn it_does_not_add_duplicate_string_using_insert_method() {
-        let mut configs: Subscriptions = HashMap::new();
+        let mut configs: HashMap<String, Vec<Subscription>> = HashMap::new();
         configs.insert("key".into(), from_slice(&["val_0"]));
 
-        let mut state = AppState { configs };
+        let mut state = Subscriptions { configs };
         state.insert("key", Subscription::new("val_0"));
 
         let values = state.configs.get("key");
@@ -99,11 +93,11 @@ mod tests {
 
     #[test]
     fn it_iterates_over_subscriptions() {
-        let mut configs: Subscriptions = HashMap::new();
+        let mut configs: HashMap<String, Vec<Subscription>> = HashMap::new();
         configs.insert("key_0".into(), from_slice(&["val_0", "val_1"]));
         configs.insert("key_1".into(), from_slice(&["val_2", "val_3"]));
 
-        let state = AppState { configs };
+        let state = Subscriptions { configs };
 
         let iterator = state.iter();
         assert_eq!(iterator.len(), 2);

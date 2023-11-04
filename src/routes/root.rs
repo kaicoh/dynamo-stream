@@ -1,4 +1,4 @@
-use crate::{AppState, Subscription};
+use crate::{Subscription, Subscriptions};
 use axum::{
     extract::{Json, State},
     response::IntoResponse,
@@ -14,13 +14,13 @@ struct Request {
     url: String,
 }
 
-async fn retrieve(State(state): State<Arc<Mutex<AppState>>>) -> impl IntoResponse {
+async fn retrieve(State(state): State<Arc<Mutex<Subscriptions>>>) -> impl IntoResponse {
     let state = state.lock().unwrap();
     axum::response::Json(state.clone())
 }
 
 async fn register(
-    State(state): State<Arc<Mutex<AppState>>>,
+    State(state): State<Arc<Mutex<Subscriptions>>>,
     Json(body): Json<Request>,
 ) -> impl IntoResponse {
     let mut state = state.lock().unwrap();
@@ -31,7 +31,7 @@ async fn register(
     "OK"
 }
 
-pub fn router(state: Arc<Mutex<AppState>>) -> Router {
+pub fn router(state: Arc<Mutex<Subscriptions>>) -> Router {
     Router::new()
         .route("/", get(retrieve))
         .route("/", post(register))
