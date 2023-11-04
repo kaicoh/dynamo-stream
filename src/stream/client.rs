@@ -4,9 +4,8 @@ use super::Record;
 use async_trait::async_trait;
 use aws_sdk_dynamodbstreams::{types::ShardIteratorType, Client};
 
-#[derive(Debug)]
 pub struct DescribeStreamResult {
-    pub shard_ids: Vec<String>,
+    pub shard_ids: Box<dyn Iterator<Item = String> + Send + Sync>,
     pub last_evaluated_shard_id: Option<String>,
 }
 
@@ -67,16 +66,15 @@ impl StreamClient for DynamoStreamClient {
             .stream_description
             .map(|output| {
                 let last_evaluated_shard_id = output.last_evaluated_shard_id;
-                let shard_ids: Vec<String> = output
+                let shard_ids = output
                     .shards
                     .unwrap_or_default()
                     .into_iter()
-                    .filter_map(|s| s.shard_id)
-                    .collect();
+                    .filter_map(|s| s.shard_id);
 
                 DescribeStreamResult {
                     last_evaluated_shard_id,
-                    shard_ids,
+                    shard_ids: Box::new(shard_ids),
                 }
             });
 
