@@ -1,19 +1,17 @@
+mod client;
 mod record;
+
+use client::{DynamoStreamClient, StreamClient};
 pub use record::{Record, Records};
 
-use super::Subscriptions;
-use aws_sdk_dynamodbstreams::{
-    types::{ShardIteratorType, StreamDescription},
-    Client,
-};
+use super::{Result, Subscriptions};
+use aws_sdk_dynamodbstreams::{types::ShardIteratorType, Client};
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
 pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
     let config = aws_config::load_from_env().await;
-    let client = Client::new(&config);
+    let client = DynamoStreamClient::new(Client::new(&config));
 
     loop {
         sleep(Duration::from_secs(3)).await;
@@ -48,14 +46,15 @@ pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
     }
 }
 
-async fn get_records(client: &Client, stream_arn: &str) -> Result<Records> {
+async fn get_records(client: &dyn StreamClient, stream_arn: &str) -> Result<Records> {
     let mut records: Vec<Record> = vec![];
 
     let (mut _records, mut last_evaluated_id) = get_record_iter(client, stream_arn, None).await?;
     records.append(&mut _records);
 
     while last_evaluated_id.is_some() {
-        let (mut _records, _id) = get_record_iter(client, stream_arn, last_evaluated_id.take()).await?;
+        let (mut _records, _id) =
+            get_record_iter(client, stream_arn, last_evaluated_id.take()).await?;
         records.append(&mut _records);
 
         last_evaluated_id = _id;
@@ -65,55 +64,29 @@ async fn get_records(client: &Client, stream_arn: &str) -> Result<Records> {
 }
 
 async fn get_record_iter(
-    client: &Client,
+    client: &dyn StreamClient,
     stream_arn: &str,
     last_evaluated_id: Option<String>,
 ) -> Result<(Vec<Record>, Option<String>)> {
     let mut records: Vec<Record> = vec![];
     let mut exclusive_id: Option<String> = None;
 
-    if let Some(StreamDescription {
-        shards,
-        last_evaluated_shard_id,
-        ..
-    }) = client
-        .describe_stream()
-        .stream_arn(stream_arn)
-        .set_exclusive_start_shard_id(last_evaluated_id)
-        .send()
+    if let Some(output) = client
+        .describe_stream(stream_arn, last_evaluated_id)
         .await?
-        .stream_description
     {
-        exclusive_id = last_evaluated_shard_id;
+        exclusive_id = output.last_evaluated_shard_id;
 
-        for shard_id in shards
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|s| s.shard_id)
-        {
+        for shard_id in output.shard_ids {
             let mut current_iter = client
-                .get_shard_iterator()
-                .stream_arn(stream_arn)
-                .shard_id(shard_id)
-                .shard_iterator_type(ShardIteratorType::Latest)
-                .send()
+                .get_shard_iterator(stream_arn, &shard_id, ShardIteratorType::Latest)
                 .await?
                 .shard_iterator;
 
             while current_iter.is_some() {
-                let output = client
-                    .get_records()
-                    .set_shard_iterator(current_iter.take())
-                    .send()
-                    .await?;
+                let output = client.get_records(current_iter.take()).await?;
 
-                let mut _records: Vec<Record> = output
-                    .records
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(Record::from)
-                    .collect();
-
+                let mut _records = output.records;
                 records.append(&mut _records);
 
                 current_iter = output.next_shard_iterator;
