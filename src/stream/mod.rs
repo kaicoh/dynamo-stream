@@ -55,7 +55,7 @@ async fn get_records(client: &Client, stream_arn: &str) -> Result<Records> {
     records.append(&mut _records);
 
     while last_evaluated_id.is_some() {
-        let (mut _records, _id) = get_record_iter(client, stream_arn, None).await?;
+        let (mut _records, _id) = get_record_iter(client, stream_arn, last_evaluated_id.take()).await?;
         records.append(&mut _records);
 
         last_evaluated_id = _id;
@@ -91,7 +91,7 @@ async fn get_record_iter(
             .into_iter()
             .filter_map(|s| s.shard_id)
         {
-            let iter = client
+            let mut current_iter = client
                 .get_shard_iterator()
                 .stream_arn(stream_arn)
                 .shard_id(shard_id)
@@ -99,8 +99,6 @@ async fn get_record_iter(
                 .send()
                 .await?
                 .shard_iterator;
-
-            let mut current_iter = iter;
 
             while current_iter.is_some() {
                 let output = client
