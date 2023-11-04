@@ -3,7 +3,12 @@ use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() {
-    let shared_state = Arc::new(Mutex::new(Subscriptions::new()));
+    let state = Arc::new(Mutex::new(Subscriptions::new()));
+    let shared_state = Arc::clone(&state);
+
+    tokio::spawn(async move {
+        dynamo_stream::subscribe(state).await;
+    });
 
     let app = root::router(shared_state);
 
