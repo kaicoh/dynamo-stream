@@ -1,3 +1,4 @@
+use super::super::Records;
 use serde::Serialize;
 use std::collections::{hash_map::Iter, HashMap};
 
@@ -10,6 +11,15 @@ pub struct Subscription {
 impl Subscription {
     pub fn new<T: Into<String>>(url: T) -> Self {
         Self { url: url.into() }
+    }
+
+    pub async fn notify(&self, records: &Records) -> Result<(), Box<dyn std::error::Error>> {
+        reqwest::Client::new()
+            .post(&self.url)
+            .json(records)
+            .send()
+            .await?;
+        Ok(())
     }
 }
 
