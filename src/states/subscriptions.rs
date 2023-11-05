@@ -1,6 +1,7 @@
 use super::super::Records;
 use serde::Serialize;
 use std::collections::{hash_map::Iter, HashMap};
+use tracing::info;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Subscription {
@@ -14,6 +15,7 @@ impl Subscription {
     }
 
     pub async fn notify(&self, records: &Records) -> Result<(), Box<dyn std::error::Error>> {
+        info!("{:#?}", records);
         reqwest::Client::new()
             .post(&self.url)
             .json(records)

@@ -11,6 +11,7 @@ use super::{Result, Subscriptions, ENV_DYNAMODB_ENDPOINT_URL};
 use aws_sdk_dynamodbstreams::types::ShardIteratorType;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
+use tracing::error;
 
 pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
     let endpoint_url = std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok();
@@ -33,7 +34,7 @@ pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
                 let records = match get_records(&client, &arn).await {
                     Ok(_records) => _records,
                     Err(err) => {
-                        eprintln!("{err}");
+                        error!("{err}");
                         return;
                     }
                 };
@@ -43,7 +44,7 @@ pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
 
                     tokio::spawn(async move {
                         if let Err(err) = sub.notify(&rs).await {
-                            eprintln!("{err}");
+                            error!("{err}");
                         }
                     });
                 }
