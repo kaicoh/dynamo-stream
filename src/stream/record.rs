@@ -13,6 +13,11 @@ impl Records {
     pub fn new(records: Vec<Record>) -> Self {
         Self { records }
     }
+
+    #[cfg(test)]
+    pub fn into_inner(self) -> Vec<Record> {
+        self.records
+    }
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -25,6 +30,25 @@ pub struct Record {
     aws_region: Option<String>,
     dynamodb: Option<StreamRecord>,
     user_identity: Option<Identity>,
+}
+
+#[cfg(test)]
+impl Record {
+    pub fn new<T: Into<String>>(event_id: T) -> Self {
+        Self {
+            event_id: Some(event_id.into()),
+            event_name: None,
+            event_version: None,
+            event_source: None,
+            aws_region: None,
+            dynamodb: None,
+            user_identity: None,
+        }
+    }
+
+    pub fn event_id(&self) -> Option<String> {
+        self.event_id.clone()
+    }
 }
 
 impl From<types::Record> for Record {

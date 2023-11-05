@@ -1,6 +1,9 @@
 mod client;
 mod record;
 
+#[cfg(test)]
+mod mock;
+
 use client::{DynamoStreamClient, StreamClient};
 pub use record::{Record, Records};
 
@@ -98,4 +101,50 @@ async fn get_record_iter(
     }
 
     Ok((records, exclusive_id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mock::{record_event_ids, shard_source_factory, ShardClient};
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_record_iter() {
+        let stream_arn = "test stream";
+        let source = shard_source_factory();
+        let client = ShardClient::new(stream_arn, source);
+
+        let res = get_record_iter(&client, stream_arn, None).await;
+        assert!(res.is_ok());
+
+        let (records, exclusive_id) = res.unwrap();
+        assert_eq!(exclusive_id, Some("shard_1".to_string()));
+        assert_eq!(
+            record_event_ids(records),
+            ["a", "b", "c", "d", "e", "f", "g"],
+        );
+
+        let res = get_record_iter(&client, stream_arn, Some("shard_1".into())).await;
+        assert!(res.is_ok());
+
+        let (records, exclusive_id) = res.unwrap();
+        assert!(exclusive_id.is_none());
+        assert!(records.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_records() {
+        let stream_arn = "test stream";
+        let source = shard_source_factory();
+        let client = ShardClient::new(stream_arn, source);
+
+        let res = get_records(&client, stream_arn).await;
+        assert!(res.is_ok());
+
+        let records = res.unwrap().into_inner();
+        assert_eq!(
+            record_event_ids(records),
+            ["a", "b", "c", "d", "e", "f", "g"],
+        );
+    }
 }
