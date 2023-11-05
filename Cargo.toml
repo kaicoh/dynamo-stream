@@ -5,12 +5,18 @@ edition = "2021"
 
 [[bin]]
 name = "create_table"
+test = false
+bench = false
 
 [[bin]]
 name = "put_item"
+test = false
+bench = false
 
 [[bin]]
 name = "stream_arn"
+test = false
+bench = false
 
 [dependencies]
 async-trait = "0.1"
