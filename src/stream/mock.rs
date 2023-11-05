@@ -51,6 +51,10 @@ impl StreamClient for ShardClient {
     }
 
     async fn get_records(&self, shard_iterator: Option<String>) -> Result<GetRecordsResult> {
+        // MEMO:
+        // If set to None, the shard has been closed and the requested iterator will not return any more data.
+        assert!(shard_iterator.is_some());
+
         let mut source = self.source.lock().unwrap();
         let res = shard_iterator
             .as_deref()
@@ -112,10 +116,10 @@ impl ShardSource {
             .find(|s| s.has_iterator(iterator_id))
             .map(|shard| {
                 let records = shard.get_next(iterator_id).unwrap_or_default();
-                let next_shard_iterator = shard.get_iterator_id();
+                let next_shard_iterator = shard.get_iterator_id().unwrap_or("no-records".into());
 
                 GetRecordsResult {
-                    next_shard_iterator,
+                    next_shard_iterator: Some(next_shard_iterator),
                     records,
                 }
             })
@@ -360,7 +364,8 @@ fn test_shard_source_get_records() {
         next_shard_iterator,
         records,
     } = source.get_records("iter_00");
-    assert!(next_shard_iterator.is_none());
+    assert!(next_shard_iterator.is_some());
+    assert_eq!(next_shard_iterator.unwrap(), "no-records");
     assert_eq!(records.len(), 1);
     assert_eq!(record_event_ids(records), ["a"]);
 
@@ -386,7 +391,8 @@ fn test_shard_source_get_records() {
         next_shard_iterator,
         records,
     } = source.get_records("iter_11");
-    assert!(next_shard_iterator.is_none());
+    assert!(next_shard_iterator.is_some());
+    assert_eq!(next_shard_iterator.unwrap(), "no-records");
     assert_eq!(records.len(), 2);
     assert_eq!(record_event_ids(records), ["f", "g"]);
 
@@ -394,7 +400,8 @@ fn test_shard_source_get_records() {
         next_shard_iterator,
         records,
     } = source.get_records("iter_20");
-    assert!(next_shard_iterator.is_none());
+    assert!(next_shard_iterator.is_some());
+    assert_eq!(next_shard_iterator.unwrap(), "no-records");
     assert!(records.is_empty());
 }
 

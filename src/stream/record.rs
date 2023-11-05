@@ -14,6 +14,14 @@ impl Records {
         Self { records }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
     #[cfg(test)]
     pub fn into_inner(self) -> Vec<Record> {
         self.records

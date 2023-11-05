@@ -14,10 +14,25 @@ pub struct GetShardIteratorResult {
     pub shard_iterator: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct GetRecordsResult {
     pub next_shard_iterator: Option<String>,
     pub records: Vec<Record>,
+}
+
+// NOTE:
+// next_shard_iterator has some value even if there are no records any more.
+// Ref: https://docs.rs/aws-sdk-dynamodbstreams/0.35.0/aws_sdk_dynamodbstreams/struct.Client.html#method.get_records
+// "next_shard_iterator" described as followings
+// The next position in the shard from which to start sequentially reading stream records.
+// If set to null, the shard has been closed and the requested iterator will not return any more data.
+impl Default for GetRecordsResult {
+    fn default() -> GetRecordsResult {
+        GetRecordsResult {
+            next_shard_iterator: Some("no-records".into()),
+            records: Vec::new(),
+        }
+    }
 }
 
 #[async_trait]

@@ -11,7 +11,7 @@ use super::{Result, Subscriptions, ENV_DYNAMODB_ENDPOINT_URL};
 use aws_sdk_dynamodbstreams::types::ShardIteratorType;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
-use tracing::error;
+use tracing::{error, info};
 
 pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
     let endpoint_url = std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok();
@@ -34,19 +34,23 @@ pub async fn subscribe(state: Arc<Mutex<Subscriptions>>) {
                 let records = match get_records(&client, &arn).await {
                     Ok(_records) => _records,
                     Err(err) => {
-                        error!("{err}");
+                        error!("{:#?}", err);
                         return;
                     }
                 };
 
-                for sub in subscriptions {
-                    let rs = records.clone();
+                if !records.is_empty() {
+                    info!("Found {} records", records.len());
 
-                    tokio::spawn(async move {
-                        if let Err(err) = sub.notify(&rs).await {
-                            error!("{err}");
-                        }
-                    });
+                    for sub in subscriptions {
+                        let rs = records.clone();
+
+                        tokio::spawn(async move {
+                            if let Err(err) = sub.notify(&rs).await {
+                                error!("{:#?}", err);
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -94,6 +98,11 @@ async fn get_record_iter(
                 let output = client.get_records(current_iter.take()).await?;
 
                 let mut _records = output.records;
+
+                if _records.is_empty() {
+                    break;
+                }
+
                 records.append(&mut _records);
 
                 current_iter = output.next_shard_iterator;
