@@ -4,9 +4,9 @@ use crate::{
     SharedState,
 };
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Path, State},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use serde::Deserialize;
@@ -35,8 +35,21 @@ async fn register(
     Ok(id)
 }
 
+async fn remove(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, HttpError> {
+    let mut state = state.lock().map_err(from_guard)?;
+
+    state
+        .set_removed(&id)
+        .ok_or(HttpError::NotFound(format!("Entry id: {id}")))
+        .map(|_| id)
+}
+
 pub fn router(state: SharedState) -> Router {
     Router::new()
+        .route("/:id", delete(remove))
         .route("/", get(index))
         .route("/", post(register))
         .with_state(state)

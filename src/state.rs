@@ -10,12 +10,16 @@ impl AppState {
         Self(HashMap::new())
     }
 
-    pub fn insert<T: Into<String>>(&mut self, id: T, entry: Entry) {
-        self.0.insert(id.into(), entry);
+    pub fn insert<T: Into<String>>(&mut self, id: T, entry: Entry) -> Option<Entry> {
+        self.0.insert(id.into(), entry)
     }
 
-    pub fn remove<T: Into<String>>(&mut self, id: T) {
-        self.0.remove(&id.into());
+    pub fn set_removed<T: Into<String>>(&mut self, id: T) -> Option<()> {
+        self.0.get_mut(&id.into()).map(Entry::mark_removed)
+    }
+
+    pub fn remove<T: Into<String>>(&mut self, id: T) -> Option<Entry> {
+        self.0.remove(&id.into())
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, String, Entry> {

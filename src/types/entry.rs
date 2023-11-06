@@ -85,6 +85,10 @@ impl Entry {
         self.status
     }
 
+    pub fn mark_removed(&mut self) {
+        self.status = Status::Removed;
+    }
+
     pub fn start_polling(&mut self, client: Arc<dyn Client>) {
         let client = Arc::clone(&client);
         let table_name = self.table_name().to_owned();
@@ -169,6 +173,7 @@ impl Entry {
         if let Some(rx) = self.receiver.as_mut() {
             match rx.try_recv() {
                 Ok(ChildEvent::ShardIteratorsClosed) => {
+                    info!("Shard itrators are all closed");
                     self.close_channels(ParentEvent::Close);
                     self.status = Status::Closed;
                 }

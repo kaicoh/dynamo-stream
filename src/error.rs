@@ -17,6 +17,8 @@ pub fn from_guard<T>(error: PoisonError<MutexGuard<'_, T>>) -> anyhow::Error {
 
 #[derive(Debug, Error)]
 pub enum HttpError {
+    #[error("Not found: `{0}`")]
+    NotFound(String),
     #[error("Internal Server Error")]
     Server(#[from] anyhow::Error),
 }
@@ -24,6 +26,7 @@ pub enum HttpError {
 impl HttpError {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::Server(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
