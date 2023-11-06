@@ -1,5 +1,6 @@
 mod client;
 mod error;
+mod extractors;
 pub mod routes;
 mod state;
 mod types;
