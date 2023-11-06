@@ -18,6 +18,7 @@ impl Records {
         self.records.is_empty()
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.records.len()
     }

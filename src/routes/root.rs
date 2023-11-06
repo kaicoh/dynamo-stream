@@ -1,4 +1,8 @@
-use crate::{Subscription, Subscriptions};
+use crate::{
+    error::{from_guard, HttpError},
+    types::Entry,
+    SharedState,
+};
 use axum::{
     extract::{Json, State},
     response::IntoResponse,
@@ -6,34 +10,34 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
+use ulid::Ulid;
 
 #[derive(Debug, Deserialize)]
 struct Request {
-    arn: String,
+    table_name: String,
     url: String,
 }
 
-async fn retrieve(State(state): State<Arc<Mutex<Subscriptions>>>) -> impl IntoResponse {
-    let state = state.lock().unwrap();
-    axum::response::Json(state.clone())
+async fn index(State(state): State<SharedState>) -> Result<impl IntoResponse, HttpError> {
+    let state = state.lock().map_err(from_guard)?;
+    Ok(axum::response::Json(state.serialize()))
 }
 
 async fn register(
-    State(state): State<Arc<Mutex<Subscriptions>>>,
+    State(state): State<SharedState>,
     Json(body): Json<Request>,
-) -> impl IntoResponse {
-    let mut state = state.lock().unwrap();
-
-    let subscription = Subscription::new(&body.url);
-    state.insert(&body.arn, subscription);
-
-    "OK"
+) -> Result<impl IntoResponse, HttpError> {
+    let Request { table_name, url } = body;
+    let id = Ulid::new().to_string();
+    let entry = Entry::new(table_name, url);
+    let mut state = state.lock().map_err(from_guard)?;
+    state.insert(&id, entry);
+    Ok(id)
 }
 
-pub fn router(state: Arc<Mutex<Subscriptions>>) -> Router {
+pub fn router(state: SharedState) -> Router {
     Router::new()
-        .route("/", get(retrieve))
+        .route("/", get(index))
         .route("/", post(register))
         .with_state(state)
 }

@@ -1,11 +1,11 @@
-use dynamo_stream::{routes::root, Subscriptions};
+use dynamo_stream::{routes::root, AppState, DynamodbClient, ENV_DYNAMODB_ENDPOINT_URL};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit,
 };
-use tracing::{info, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -13,11 +13,20 @@ async fn main() {
     let subscriber = FmtSubscriber::new();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let state = Arc::new(Mutex::new(Subscriptions::new()));
+    let endpoint_url = std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok();
+    let client = DynamodbClient::builder()
+        .await
+        .endpoint_url(endpoint_url)
+        .build();
+
+    let state = Arc::new(Mutex::new(AppState::new()));
     let shared_state = Arc::clone(&state);
 
     tokio::spawn(async move {
-        dynamo_stream::subscribe(state).await;
+        if let Err(err) = dynamo_stream::subscribe(state, Arc::new(client)).await {
+            error!("Unexpected error from polling process.");
+            error!("{:#?}", err);
+        }
     });
 
     let app = root::router(shared_state).layer(
