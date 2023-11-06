@@ -110,7 +110,7 @@ impl Entry {
 
             if shards.is_empty() {
                 let event = ChildEvent::Error {
-                    message: format!("Empty shards in `{table_name}`"),
+                    message: format!("No shards in `{table_name}`"),
                     error: anyhow::anyhow!("Empty shards"),
                 };
                 if let Err(err) = tx_to_parent.send(event) {
@@ -124,7 +124,7 @@ impl Entry {
 
                 match rx_from_parent.try_recv() {
                     Ok(event) => {
-                        info!("Got event `{event}` from parent. stop polling process.");
+                        info!("Got event `{event}` from parent. Stopping polling process.");
                         break;
                     }
                     Err(TryRecvError::Closed) => {
@@ -145,7 +145,7 @@ impl Entry {
                 };
 
                 if !records.is_empty() {
-                    // MEMO: Not break even if failed to notify
+                    // MEMO: Not break the loop even if notification fails
                     if let Err(err) = notify(&url, records).await {
                         warn!("{:#?}", err);
                     }
@@ -181,7 +181,7 @@ impl Entry {
                     error!("{:#?}", error);
                     self.close_channels(ParentEvent::Close);
                     self.status = Status::Error;
-                    self.error = Some(format!("Unexpected error: {message}"))
+                    self.error = Some(format!("Unexpected error: {message}"));
                 }
                 Err(TryRecvError::Closed) => {
                     let message = "Oneshot channel is closed unexpectedly.";
