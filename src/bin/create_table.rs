@@ -54,13 +54,8 @@ async fn main() {
         .send()
         .await
     {
-        Ok(output) => {
-            if let Some(table_description) = output.table_description {
-                info!(
-                    "Stream ARN: {}",
-                    table_description.latest_stream_arn.unwrap_or_default()
-                );
-            }
+        Ok(_) => {
+            info!("Table name: {TABLE}");
         }
         Err(err) => {
             error!("{:#?}", err);

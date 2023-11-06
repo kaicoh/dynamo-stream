@@ -13,11 +13,6 @@ name = "put_item"
 test = false
 bench = false
 
-[[bin]]
-name = "stream_arn"
-test = false
-bench = false
-
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"

@@ -254,6 +254,7 @@ async fn get_records(client: &Arc<dyn Client>, shards: &Shards) -> ChildResult<(
 }
 
 async fn notify(url: &str, records: Records) -> Result<()> {
+    info!("{:#?}", records);
     reqwest::Client::new()
         .post(url)
         .json(&records)
