@@ -35,7 +35,7 @@ async fn register(
     Ok(id)
 }
 
-async fn remove(
+async fn deregister(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, HttpError> {
@@ -49,7 +49,7 @@ async fn remove(
 
 pub fn router(state: SharedState) -> Router {
     Router::new()
-        .route("/:id", delete(remove))
+        .route("/:id", delete(deregister))
         .route("/", get(index))
         .route("/", post(register))
         .with_state(state)
