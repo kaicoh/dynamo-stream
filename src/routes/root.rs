@@ -15,7 +15,7 @@ use ulid::Ulid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
-struct ValidatableRequest {
+struct RawEntryBody {
     #[validate(required, length(max = 255))]
     table_name: Option<String>,
     #[validate(required, length(max = 255))]
@@ -23,18 +23,18 @@ struct ValidatableRequest {
 }
 
 #[derive(Debug)]
-struct Request {
+struct EntryBody {
     table_name: String,
     url: String,
 }
 
-impl FromValidate for Request {
-    type Validatable = ValidatableRequest;
+impl FromValidate for EntryBody {
+    type Validatable = RawEntryBody;
 
-    fn from(req: ValidatableRequest) -> Request {
-        Request {
-            table_name: req.table_name.expect("`table_name` should be Some"),
-            url: req.url.expect("`url` should be Some"),
+    fn from(b: RawEntryBody) -> EntryBody {
+        EntryBody {
+            table_name: b.table_name.expect("`table_name` should be Some"),
+            url: b.url.expect("`url` should be Some"),
         }
     }
 }
@@ -46,9 +46,9 @@ async fn index(State(state): State<SharedState>) -> Result<impl IntoResponse, Ht
 
 async fn register(
     State(state): State<SharedState>,
-    Json(body): Json<Request>,
+    Json(body): Json<EntryBody>,
 ) -> Result<impl IntoResponse, HttpError> {
-    let Request { table_name, url } = body;
+    let EntryBody { table_name, url } = body;
     let id = Ulid::new().to_string();
     let entry = Entry::new(table_name, url);
     let mut state = state.lock().map_err(from_guard)?;
