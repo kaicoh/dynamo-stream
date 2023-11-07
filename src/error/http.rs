@@ -9,11 +9,11 @@ use validator::{ValidationErrors, ValidationErrorsKind};
 
 #[derive(Debug, Error)]
 pub enum HttpError {
-    #[error("validation error")]
+    #[error("Validation error")]
     Validation(Option<ValidationErrors>),
     #[error("Not found: `{0}`")]
     NotFound(String),
-    #[error("Internal Server Error")]
+    #[error("Internal server error")]
     Server(#[from] anyhow::Error),
 }
 
@@ -29,7 +29,7 @@ impl IntoResponse for HttpError {
                 error!("{:#?}", err);
                 let status = StatusCode::INTERNAL_SERVER_ERROR;
                 let header = [("content-type", "text/plain")];
-                (status, header, format!("{err}")).into_response()
+                (status, header, "Internal server error").into_response()
             }
         }
     }
