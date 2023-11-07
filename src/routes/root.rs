@@ -1,6 +1,6 @@
 use crate::{
     error::{from_guard, HttpError},
-    extractors::{IntoValid, Json},
+    extractors::{FromValidate, Json},
     types::Entry,
     SharedState,
 };
@@ -15,7 +15,7 @@ use ulid::Ulid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
-struct Request {
+struct ValidatableRequest {
     #[validate(required, length(max = 255))]
     table_name: Option<String>,
     #[validate(required, length(max = 255))]
@@ -23,18 +23,18 @@ struct Request {
 }
 
 #[derive(Debug)]
-struct ValidRequest {
+struct Request {
     table_name: String,
     url: String,
 }
 
-impl IntoValid for Request {
-    type Valid = ValidRequest;
+impl FromValidate for Request {
+    type Validatable = ValidatableRequest;
 
-    fn into_valid(self) -> Self::Valid {
-        ValidRequest {
-            table_name: self.table_name.unwrap(),
-            url: self.url.unwrap(),
+    fn from(req: ValidatableRequest) -> Request {
+        Request {
+            table_name: req.table_name.expect("`table_name` should be Some"),
+            url: req.url.expect("`table_name` should be Some"),
         }
     }
 }
@@ -48,7 +48,7 @@ async fn register(
     State(state): State<SharedState>,
     Json(body): Json<Request>,
 ) -> Result<impl IntoResponse, HttpError> {
-    let ValidRequest { table_name, url } = body.into_valid();
+    let Request { table_name, url } = body;
     let id = Ulid::new().to_string();
     let entry = Entry::new(table_name, url);
     let mut state = state.lock().map_err(from_guard)?;

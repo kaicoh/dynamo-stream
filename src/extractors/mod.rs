@@ -1,3 +1,3 @@
 mod json;
 
-pub use json::{IntoValid, Json};
+pub use json::{FromValidate, Json};
