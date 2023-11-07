@@ -34,7 +34,7 @@ impl FromValidate for Request {
     fn from(req: ValidatableRequest) -> Request {
         Request {
             table_name: req.table_name.expect("`table_name` should be Some"),
-            url: req.url.expect("`table_name` should be Some"),
+            url: req.url.expect("`url` should be Some"),
         }
     }
 }
