@@ -13,7 +13,7 @@ use tracing::{error, info, warn};
 type Shards = HashMap<String, Shard>;
 type ChildResult<T> = std::result::Result<T, ChildEvent>;
 
-#[derive(Debug, Copy, Clone, Serialize)]
+#[derive(Debug, Copy, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Status {
     Created,

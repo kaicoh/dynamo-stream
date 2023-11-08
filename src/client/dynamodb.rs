@@ -1,11 +1,11 @@
 use super::{Client, GetRecordsOutput, GetShardsOutput, Record, Shard};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use aws_sdk_dynamodb::{config::Builder as DbConfigBuilder, Client as DbClient};
 use aws_sdk_dynamodbstreams::{
     config::Builder as StreamConfigBuilder, types::ShardIteratorType, Client as StreamClient,
 };
+use axum::async_trait;
 
 #[derive(Debug, Clone)]
 pub struct DynamodbClient {

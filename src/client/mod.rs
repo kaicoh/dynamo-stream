@@ -5,7 +5,7 @@ mod mock;
 use crate::types::{Record, Shard};
 
 use anyhow::Result;
-use async_trait::async_trait;
+use axum::async_trait;
 
 #[derive(Debug, Clone)]
 pub struct GetShardsOutput {

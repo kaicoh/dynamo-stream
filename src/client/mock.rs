@@ -3,7 +3,7 @@ use crate::error::from_guard;
 use super::{Client, GetRecordsOutput, GetShardsOutput, Record, Shard};
 
 use anyhow::Result;
-use async_trait::async_trait;
+use axum::async_trait;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]

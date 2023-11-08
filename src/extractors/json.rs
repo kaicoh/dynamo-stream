@@ -1,7 +1,6 @@
 use crate::error::HttpError;
 
-use async_trait::async_trait;
-use axum::{extract::FromRequest, http::Request, RequestExt};
+use axum::{async_trait, extract::FromRequest, http::Request, RequestExt};
 use serde::Deserialize;
 use std::fmt;
 use validator::Validate;
