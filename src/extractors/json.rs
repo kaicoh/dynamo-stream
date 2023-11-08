@@ -41,39 +41,37 @@ mod tests {
     use super::*;
 
     #[derive(Debug, Clone, Deserialize, Validate)]
-    struct Test {
+    struct RawTest {
         #[validate(required)]
         name: Option<String>,
     }
 
     #[derive(Debug, PartialEq)]
-    struct ValidatedTest {
+    struct Test {
         name: String,
     }
 
-    impl FromValidate for ValidatedTest {
-        type Validatable = Test;
+    impl FromValidate for Test {
+        type Validatable = RawTest;
 
-        fn from(value: Test) -> ValidatedTest {
-            ValidatedTest {
+        fn from(value: RawTest) -> Test {
+            Test {
                 name: value.name.expect("`name` should be Some"),
             }
         }
     }
 
-    type TestJson = Json<ValidatedTest>;
-
-    impl fmt::Debug for TestJson {
+    impl fmt::Debug for Json<Test> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
             write!(f, "{:?}", self.0)
         }
     }
 
     #[async_trait]
-    impl FromRequest<(), Test> for axum::Json<Test> {
+    impl FromRequest<(), RawTest> for axum::Json<RawTest> {
         type Rejection = HttpError;
 
-        async fn from_request(req: Request<Test>, _state: &()) -> Result<Self, Self::Rejection> {
+        async fn from_request(req: Request<RawTest>, _state: &()) -> Result<Self, Self::Rejection> {
             let body = req.body().clone();
             Ok(Self(body))
         }
@@ -81,7 +79,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_gets_raw_request_and_returns_validated_struct() {
-        let body = Test {
+        let body = RawTest {
             name: Some("Tanaka".into()),
         };
 
@@ -91,7 +89,7 @@ mod tests {
             .body(body)
             .unwrap();
 
-        let result = TestJson::from_request(req, &()).await;
+        let result = Json::<Test>::from_request(req, &()).await;
         assert!(result.is_ok());
 
         let inner = result.unwrap().0;
@@ -100,7 +98,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_returns_error_if_it_violates_validation() {
-        let body = Test { name: None };
+        let body = RawTest { name: None };
 
         let req = Request::builder()
             .method("POST")
@@ -108,7 +106,7 @@ mod tests {
             .body(body)
             .unwrap();
 
-        let result = TestJson::from_request(req, &()).await;
+        let result = Json::<Test>::from_request(req, &()).await;
         assert!(result.is_err());
 
         let err = result.unwrap_err();
