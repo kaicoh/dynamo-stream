@@ -1,6 +1,6 @@
 use crate::client::Client;
 
-use super::{Event, NotiEvent};
+use super::{ChannelEvent, NotiEvent};
 
 use std::sync::Arc;
 use tokio::sync::{
@@ -16,8 +16,8 @@ pub struct Subscription {
     table_name: String,
     url: String,
     interval: Option<u64>,
-    sender: Option<oneshot::Sender<Event>>,
-    receiver: Option<oneshot::Receiver<Event>>,
+    sender: Option<oneshot::Sender<ChannelEvent>>,
+    receiver: Option<oneshot::Receiver<ChannelEvent>>,
     notifier: Option<mpsc::Sender<NotiEvent>>,
 }
 
@@ -25,8 +25,8 @@ impl Subscription {
     pub fn new<S, T>(
         table_name: S,
         url: T,
-        sender: oneshot::Sender<Event>,
-        receiver: oneshot::Receiver<Event>,
+        sender: oneshot::Sender<ChannelEvent>,
+        receiver: oneshot::Receiver<ChannelEvent>,
         notifier: mpsc::Sender<NotiEvent>,
     ) -> Self
     where
@@ -64,7 +64,7 @@ impl Subscription {
             let mut shards = match client.get_shards(&table_name).await {
                 Ok(output) => output.shards,
                 Err(err) => {
-                    let event = Event::new_err(
+                    let event = ChannelEvent::new_err(
                         err,
                         format!("Failed to get shards. table_name: {table_name}"),
                     );
@@ -74,7 +74,7 @@ impl Subscription {
             };
 
             if shards.is_empty() {
-                let event = Event::Error {
+                let event = ChannelEvent::Error {
                     message: format!("No shards in `{table_name}`"),
                     error: anyhow::anyhow!("Empty shards"),
                 };
@@ -102,7 +102,7 @@ impl Subscription {
                 let (records, next_shards) = match client.get_records(&shards).await {
                     Ok(output) => (output.records, output.shards),
                     Err(err) => {
-                        let event = Event::new_err(err, "Failed to get records");
+                        let event = ChannelEvent::new_err(err, "Failed to get records");
                         oneshot_send(event);
                         break;
                     }
@@ -117,7 +117,7 @@ impl Subscription {
                 }
 
                 if next_shards.is_empty() {
-                    oneshot_send(Event::Closed);
+                    oneshot_send(ChannelEvent::Closed);
                     break;
                 }
 
@@ -127,8 +127,8 @@ impl Subscription {
     }
 }
 
-fn oneshot_sender(tx: oneshot::Sender<Event>) -> impl FnOnce(Event) {
-    |event: Event| {
+fn oneshot_sender(tx: oneshot::Sender<ChannelEvent>) -> impl FnOnce(ChannelEvent) {
+    |event: ChannelEvent| {
         if let Err(err) = tx.send(event) {
             error!("{:#?}", err);
         }

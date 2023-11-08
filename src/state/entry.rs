@@ -1,6 +1,6 @@
 use crate::client::Client;
 
-use super::{Channel, Event, NotiEvent, Subscription};
+use super::{Channel, ChannelEvent, NotiEvent, Subscription};
 
 use serde::Serialize;
 use std::sync::Arc;
@@ -35,8 +35,8 @@ impl Entry {
         let table_name: String = table_name.into();
         let url: String = url.into();
 
-        let (tx_0, rx_0) = oneshot::channel::<Event>();
-        let (tx_1, rx_1) = oneshot::channel::<Event>();
+        let (tx_0, rx_0) = oneshot::channel::<ChannelEvent>();
+        let (tx_1, rx_1) = oneshot::channel::<ChannelEvent>();
 
         let channel = Channel::new(tx_0, rx_1);
         let subscription =

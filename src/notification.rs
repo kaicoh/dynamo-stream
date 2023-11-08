@@ -2,7 +2,7 @@ use crate::types::Records;
 use tokio::sync::mpsc::Receiver;
 
 use anyhow::Result;
-use tracing::{info, warn};
+use tracing::{error, info};
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -31,9 +31,11 @@ impl Event {
 
 pub async fn start(mut receiver: Receiver<Event>) -> Result<()> {
     while let Some(event) = receiver.recv().await {
-        if let Err(err) = event.notify().await {
-            warn!("{:#?}", err);
-        }
+        tokio::spawn(async move {
+            if let Err(err) = event.notify().await {
+                error!("{:#?}", err);
+            }
+        });
     }
 
     Err(anyhow::anyhow!(

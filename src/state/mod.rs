@@ -13,7 +13,7 @@ use std::fmt;
 use tokio::sync::mpsc::Sender;
 
 #[derive(Debug)]
-pub enum Event {
+pub enum ChannelEvent {
     Closed,
     Error {
         message: String,
@@ -21,16 +21,16 @@ pub enum Event {
     },
 }
 
-impl fmt::Display for Event {
+impl fmt::Display for ChannelEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Event::Closed => write!(f, "CLOSED"),
-            Event::Error { .. } => write!(f, "ERROR"),
+            ChannelEvent::Closed => write!(f, "CLOSED"),
+            ChannelEvent::Error { .. } => write!(f, "ERROR"),
         }
     }
 }
 
-impl Event {
+impl ChannelEvent {
     fn new_err<T: Into<String>>(error: anyhow::Error, message: T) -> Self {
         Self::Error {
             message: message.into(),
