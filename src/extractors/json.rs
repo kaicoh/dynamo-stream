@@ -122,7 +122,6 @@ mod tests {
             .unwrap();
 
         let result = Json::<Test>::from_request(req, &()).await;
-        assert!(result.is_err());
 
         match result {
             Ok(_) => {
@@ -147,7 +146,6 @@ mod tests {
             .unwrap();
 
         let result = Json::<Test>::from_request(req, &()).await;
-        assert!(result.is_err());
 
         match result {
             Ok(_) => {
