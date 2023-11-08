@@ -10,9 +10,11 @@ use validator::{ValidationErrors, ValidationErrorsKind};
 #[derive(Debug, Error)]
 pub enum HttpError {
     #[error("Validation error")]
-    Validation(Option<ValidationErrors>),
+    Validation(ValidationErrors),
     #[error("Not found: `{0}`")]
     NotFound(String),
+    #[error("Unprocessable: `{0}`")]
+    Unprocessable(String),
     #[error("Internal server error")]
     Server(#[from] anyhow::Error),
 }
@@ -40,6 +42,7 @@ impl HttpError {
         match self {
             Self::Validation(_) => StatusCode::BAD_REQUEST,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Server(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -53,7 +56,7 @@ impl HttpError {
 
     fn validation_errors(&self) -> Vec<ValidationErrorContent> {
         match self {
-            Self::Validation(Some(errors)) => ValidationErrorContent::from_errors(errors),
+            Self::Validation(errors) => ValidationErrorContent::from_errors(errors),
             _ => vec![],
         }
     }

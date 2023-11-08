@@ -58,6 +58,10 @@ impl Record {
     pub fn event_id(&self) -> Option<String> {
         self.event_id.clone()
     }
+
+    pub fn event_ids(records: Vec<Self>) -> Vec<String> {
+        records.iter().filter_map(Self::event_id).collect()
+    }
 }
 
 impl From<types::Record> for Record {
