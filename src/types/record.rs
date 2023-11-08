@@ -18,6 +18,10 @@ impl Records {
         self.records.is_empty()
     }
 
+    pub fn append(&mut self, records: &mut Vec<Record>) {
+        self.records.append(records)
+    }
+
     #[cfg(test)]
     pub fn len(&self) -> usize {
         self.records.len()

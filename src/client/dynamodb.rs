@@ -1,4 +1,4 @@
-use super::{Client, GetRecordsOutput, GetShardsOutput, Record, Shard};
+use super::{Client, GetRecordsOutput, GetShardsOutput, Record, Records, Shards};
 
 use anyhow::Result;
 use aws_sdk_dynamodb::{config::Builder as DbConfigBuilder, Client as DbClient};
@@ -16,46 +16,33 @@ pub struct DynamodbClient {
 #[async_trait]
 impl Client for DynamodbClient {
     async fn get_shards(&self, table_name: &str) -> Result<GetShardsOutput> {
-        let mut shards: Vec<Shard> = vec![];
+        let mut shards = Shards::new();
         let stream_arn = self.get_stream_arn(table_name).await?;
-        let (shard_ids, mut next_id) = self.describe_stream(&stream_arn, None).await?;
-
-        let mut _shards = self.map_to_shards(&stream_arn, &shard_ids).await?;
-        shards.append(&mut _shards);
+        let mut next_id = self.append_shards(&mut shards, &stream_arn, None).await?;
 
         while next_id.is_some() {
-            let (shard_ids, _next_id) = self.describe_stream(&stream_arn, next_id.clone()).await?;
-
-            let mut _shards = self.map_to_shards(&stream_arn, &shard_ids).await?;
-            shards.append(&mut _shards);
-
-            next_id = _next_id
+            next_id = self
+                .append_shards(&mut shards, &stream_arn, next_id.clone())
+                .await?;
         }
 
         Ok(GetShardsOutput { shards })
     }
 
-    async fn get_records(&self, iterator: &str) -> Result<GetRecordsOutput> {
-        self.stream_client
-            .get_records()
-            .shard_iterator(iterator)
-            .send()
-            .await
-            .map(|output| {
-                let next_iterator = output.next_shard_iterator;
-                let records = output
-                    .records
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(Record::from)
-                    .collect();
+    async fn get_records(&self, shards: &Shards) -> Result<GetRecordsOutput> {
+        let mut next_shards = Shards::new();
+        let mut records = Records::new(vec![]);
 
-                GetRecordsOutput {
-                    records,
-                    next_iterator,
-                }
-            })
-            .map_err(anyhow::Error::from)
+        for (shard_id, iterator_id) in shards.iter() {
+            if let Some(next_iterator_id) = self.append_records(&mut records, iterator_id).await? {
+                next_shards.insert(shard_id, next_iterator_id);
+            }
+        }
+
+        Ok(GetRecordsOutput {
+            shards: next_shards,
+            records,
+        })
     }
 }
 
@@ -78,12 +65,14 @@ impl DynamodbClient {
             ))
     }
 
-    async fn describe_stream(
+    async fn append_shards(
         &self,
+        shards: &mut Shards,
         stream_arn: &str,
         last_evaluated_shard_id: Option<String>,
-    ) -> Result<(Vec<String>, Option<String>)> {
-        self.stream_client
+    ) -> Result<Option<String>> {
+        let (shard_ids, next_id) = self
+            .stream_client
             .describe_stream()
             .stream_arn(stream_arn)
             .set_exclusive_start_shard_id(last_evaluated_shard_id)
@@ -94,43 +83,59 @@ impl DynamodbClient {
                 "`stream_description` is None in `DescribeStreamOutput`"
             ))
             .map(|output| {
-                let last_evaluated_shard_id = output.last_evaluated_shard_id;
+                let next_id = output.last_evaluated_shard_id;
                 let shard_ids: Vec<String> = output
                     .shards
                     .unwrap_or_default()
                     .into_iter()
                     .filter_map(|shard| shard.shard_id)
                     .collect();
-                (shard_ids, last_evaluated_shard_id)
-            })
-    }
-
-    async fn get_shard_iterator(&self, stream_arn: &str, shard_id: &str) -> Result<Option<String>> {
-        self.stream_client
-            .get_shard_iterator()
-            .stream_arn(stream_arn)
-            .shard_id(shard_id)
-            .shard_iterator_type(ShardIteratorType::Latest)
-            .send()
-            .await
-            .map(|output| output.shard_iterator)
-            .map_err(anyhow::Error::from)
-    }
-
-    async fn map_to_shards(&self, stream_arn: &str, shard_ids: &[String]) -> Result<Vec<Shard>> {
-        let mut shards: Vec<Shard> = vec![];
+                (shard_ids, next_id)
+            })?;
 
         for shard_id in shard_ids {
-            if let Some(iterator) = self
-                .get_shard_iterator(stream_arn, shard_id.as_str())
-                .await?
+            if let Some(iterator_id) = self
+                .stream_client
+                .get_shard_iterator()
+                .stream_arn(stream_arn)
+                .shard_id(&shard_id)
+                .shard_iterator_type(ShardIteratorType::Latest)
+                .send()
+                .await
+                .map(|output| output.shard_iterator)?
             {
-                let shard = Shard::new(shard_id, iterator);
-                shards.push(shard);
+                shards.insert(shard_id, iterator_id);
             }
         }
 
-        Ok(shards)
+        Ok(next_id)
+    }
+
+    async fn append_records(
+        &self,
+        records: &mut Records,
+        iterator: &str,
+    ) -> Result<Option<String>> {
+        let (mut _records, next_iterator_id) = self
+            .stream_client
+            .get_records()
+            .shard_iterator(iterator)
+            .send()
+            .await
+            .map(|output| {
+                let next_iterator_id = output.next_shard_iterator;
+                let _records = output
+                    .records
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(Record::from)
+                    .collect();
+                (_records, next_iterator_id)
+            })?;
+
+        records.append(&mut _records);
+
+        Ok(next_iterator_id)
     }
 }
 

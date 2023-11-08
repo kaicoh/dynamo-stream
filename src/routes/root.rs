@@ -1,7 +1,7 @@
 use crate::{
     error::{from_guard, HttpError},
     extractors::{FromValidate, Json},
-    types::Entry,
+    state::Entry,
     SharedState,
 };
 use axum::{
@@ -41,7 +41,7 @@ impl FromValidate for EntryBody {
 
 async fn index(State(state): State<SharedState>) -> Result<impl IntoResponse, HttpError> {
     let state = state.lock().map_err(from_guard)?;
-    Ok(axum::response::Json(state.serialize()))
+    Ok(axum::response::Json(state.entry_states()))
 }
 
 async fn register(
@@ -50,9 +50,12 @@ async fn register(
 ) -> Result<impl IntoResponse, HttpError> {
     let EntryBody { table_name, url } = body;
     let id = Ulid::new().to_string();
-    let entry = Entry::new(table_name, url);
+
     let mut state = state.lock().map_err(from_guard)?;
+    let notifier = state.get_notifier();
+    let entry = Entry::new(table_name, url, notifier);
     state.insert(&id, entry);
+
     Ok(id)
 }
 
@@ -79,16 +82,14 @@ pub fn router(state: SharedState) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        types::{Entry, EntryStatus},
-        AppState,
-    };
+    use crate::{state::EntryStatus, AppState};
     use axum::{
         body::Body,
         http::{Request, StatusCode},
         response::Response,
     };
     use std::sync::{Arc, Mutex};
+    use tokio::sync::mpsc;
     use tower::ServiceExt;
 
     #[tokio::test]
@@ -214,8 +215,9 @@ mod tests {
     }
 
     fn build_state() -> SharedState {
-        let mut state = AppState::new();
-        let entry = Entry::new("People", "http://test.com");
+        let (tx, _rx) = mpsc::channel::<_>(10);
+        let mut state = AppState::new(tx.clone());
+        let entry = Entry::new("People", "http://test.com", tx);
         state.insert("entry_0", entry);
         Arc::new(Mutex::new(state))
     }

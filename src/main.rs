@@ -1,6 +1,11 @@
-use dynamo_stream::{routes::root, AppState, DynamodbClient, ENV_DYNAMODB_ENDPOINT_URL};
+use dynamo_stream::{
+    notification::{self, Event},
+    routes::root,
+    AppState, DynamodbClient, ENV_DYNAMODB_ENDPOINT_URL,
+};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit,
@@ -19,8 +24,17 @@ async fn main() {
         .endpoint_url(endpoint_url)
         .build();
 
-    let state = Arc::new(Mutex::new(AppState::new()));
+    let (tx, rx) = mpsc::channel::<Event>(100);
+
+    let state = Arc::new(Mutex::new(AppState::new(tx)));
     let shared_state = Arc::clone(&state);
+
+    tokio::spawn(async move {
+        if let Err(err) = notification::start(rx).await {
+            error!("Unexpected error from notification process.");
+            error!("{:#?}", err);
+        }
+    });
 
     tokio::spawn(async move {
         if let Err(err) = dynamo_stream::subscribe(state, Arc::new(client)).await {

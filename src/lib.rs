@@ -1,6 +1,7 @@
 mod client;
 mod error;
 mod extractors;
+pub mod notification;
 pub mod routes;
 mod state;
 mod types;
@@ -15,9 +16,9 @@ pub const ENV_DYNAMODB_ENDPOINT_URL: &str = "DYNAMODB_ENDPOINT_URL";
 use anyhow::Result;
 use client::Client;
 use error::from_guard;
+use state::EntryStatus;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
-use types::EntryStatus;
 
 pub async fn subscribe(state: SharedState, client: Arc<dyn Client>) -> Result<()> {
     loop {
