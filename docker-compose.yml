@@ -1,6 +1,16 @@
 version: "3"
 
 services:
+  stream:
+    build: .
+    ports:
+      - 3000:3000
+    environment:
+      - DYNAMODB_ENDPOINT_URL=http://db:8000
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=ap-northeast-1
+
   db:
     image: public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest
     ports:
