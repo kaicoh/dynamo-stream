@@ -64,10 +64,10 @@ impl Subscription {
             let mut shards = match client.get_shards(&table_name).await {
                 Ok(output) => output.shards,
                 Err(err) => {
-                    let event = ChannelEvent::new_err(
-                        err,
-                        format!("Failed to get shards. table_name: {table_name}"),
-                    );
+                    let event = ChannelEvent::Error {
+                        message: format!("Failed to get shards. table_name: {table_name}"),
+                        error: anyhow::Error::from(err),
+                    };
                     oneshot_send(event);
                     return;
                 }
@@ -102,7 +102,10 @@ impl Subscription {
                 let (records, next_shards) = match client.get_records(&shards).await {
                     Ok(output) => (output.records, output.shards),
                     Err(err) => {
-                        let event = ChannelEvent::new_err(err, "Failed to get records");
+                        let event = ChannelEvent::Error {
+                            message: "Failed to get records".into(),
+                            error: anyhow::Error::from(err),
+                        };
                         oneshot_send(event);
                         break;
                     }
@@ -110,9 +113,10 @@ impl Subscription {
 
                 if !records.is_empty() {
                     let event = NotiEvent::http(&url, records);
-                    // MEMO: Not break the loop even if notification fails
+
                     if let Err(err) = notifier.send(event).await {
-                        warn!("{:#?}", err);
+                        oneshot_send(err.into());
+                        break;
                     }
                 }
 

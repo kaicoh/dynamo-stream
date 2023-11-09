@@ -10,7 +10,7 @@ use subscription::Subscription;
 
 use std::collections::{hash_map::IterMut, HashMap};
 use std::fmt;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Sender, error::SendError};
 
 #[derive(Debug)]
 pub enum ChannelEvent {
@@ -30,12 +30,11 @@ impl fmt::Display for ChannelEvent {
     }
 }
 
-impl ChannelEvent {
-    fn new_err<T: Into<String>>(error: anyhow::Error, message: T) -> Self {
-        Self::Error {
-            message: message.into(),
-            error,
-        }
+impl From<SendError<NotiEvent>> for ChannelEvent {
+    fn from(error: SendError<NotiEvent>) -> ChannelEvent {
+        let message = format!("Failed to send notification event: {error}");
+        let error = anyhow::Error::from(error);
+        ChannelEvent::Error { message, error }
     }
 }
 
