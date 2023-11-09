@@ -26,4 +26,4 @@ pub trait Client: Send + Sync {
 
 pub use dynamodb::DynamodbClient;
 #[cfg(test)]
-pub use mock::MockClient;
+pub use mock::{RecordsSource, ShardsSource, SourceClient};

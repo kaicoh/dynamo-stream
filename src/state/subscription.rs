@@ -149,3 +149,289 @@ async fn notify_err(tx: mpsc::Sender<NotiEvent>) {
         error!("{:#?}", err);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::{RecordsSource, ShardsSource, SourceClient};
+    use std::sync::Mutex;
+
+    #[tokio::test]
+    async fn it_sends_records_to_notify() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (_tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        match rx.try_recv() {
+            Ok(event) => {
+                matches!(event, ChannelEvent::Closed);
+            }
+            Err(_) => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_some());
+        match opt.unwrap() {
+            NotiEvent::Http { url, records } => {
+                assert_eq!(url, "http://foo.bar");
+                assert_eq!(records.len(), 2);
+                assert!(records.includes("record_0"));
+                assert!(records.includes("record_1"));
+            }
+            _ => {
+                unreachable!("Notification receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_sends_records_until_the_active_shards_are_empty() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0"), ("shard_1", "iterator_1")]);
+        s.push([("shard_2", "iterator_2")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        r.push(["record_2", "record_3", "record_4"]);
+        r.push(["record_5"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (_tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        match rx.try_recv() {
+            Ok(event) => {
+                matches!(event, ChannelEvent::Closed);
+            }
+            Err(_) => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_some());
+        match opt.unwrap() {
+            NotiEvent::Http { url, records } => {
+                assert_eq!(url, "http://foo.bar");
+                assert_eq!(records.len(), 2);
+                assert!(records.includes("record_0"));
+                assert!(records.includes("record_1"));
+            }
+            _ => {
+                unreachable!("Notification receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_some());
+        match opt.unwrap() {
+            NotiEvent::Http { url, records } => {
+                assert_eq!(url, "http://foo.bar");
+                assert_eq!(records.len(), 3);
+                assert!(records.includes("record_2"));
+                assert!(records.includes("record_3"));
+                assert!(records.includes("record_4"));
+            }
+            _ => {
+                unreachable!("Notification receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_sends_error_if_there_are_no_shards() {
+        let s = ShardsSource::new("People");
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (_tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        let event = rx.try_recv().expect("An event should be sent");
+        match event {
+            ChannelEvent::Error { message, error } => {
+                assert_eq!(message, "No shards in `People`");
+                assert_eq!(format!("{error}"), "Empty shards");
+            }
+            _ => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_some());
+        match opt.unwrap() {
+            NotiEvent::Error(message) => {
+                assert_eq!(message, "Server error occurred. Stop subscription.");
+            }
+            _ => {
+                unreachable!("Notification receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_stops_sending_when_receiving_event() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        tx.send(ChannelEvent::Closed).expect("send should succeed");
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        match rx.try_recv() {
+            Err(TryRecvError::Closed) => {}
+            _ => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_stops_sending_when_the_channel_half_is_dropped() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        drop(tx);
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        match rx.try_recv() {
+            Err(TryRecvError::Closed) => {}
+            _ => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_some());
+        match opt.unwrap() {
+            NotiEvent::Error(message) => {
+                assert_eq!(message, "Server error occurred. Stop subscription.");
+            }
+            _ => {
+                unreachable!("Notification receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_does_not_send_any_records_when_the_records_are_empty() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let r = RecordsSource::new();
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (_tx, mut rx, mut noti, mut sub) = build_subscription();
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        match rx.try_recv() {
+            Ok(event) => {
+                matches!(event, ChannelEvent::Closed);
+            }
+            Err(_) => {
+                unreachable!("Receiver got unexpected event");
+            }
+        }
+
+        let opt = noti.recv().await;
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_sends_error_if_it_fails_to_notify() {
+        let mut s = ShardsSource::new("People");
+        s.push([("shard_0", "iterator_0")]);
+        let s = Arc::new(Mutex::new(s));
+
+        let mut r = RecordsSource::new();
+        r.push(["record_0", "record_1"]);
+        let r = Arc::new(Mutex::new(r));
+
+        let client = SourceClient::new(Arc::clone(&s), Arc::clone(&r));
+        let (_tx, mut rx, noti, mut sub) = build_subscription();
+
+        drop(noti);
+
+        let result = sub.start_polling(Arc::new(client)).await;
+        assert!(result.is_ok());
+
+        let event = rx.try_recv().expect("An event should be sent");
+        assert!(matches!(event, ChannelEvent::Error { .. }));
+    }
+
+    fn build_subscription() -> (
+        oneshot::Sender<ChannelEvent>,
+        oneshot::Receiver<ChannelEvent>,
+        mpsc::Receiver<NotiEvent>,
+        Subscription,
+    ) {
+        let (tx_0, rx_0) = oneshot::channel::<ChannelEvent>();
+        let (tx_1, rx_1) = oneshot::channel::<ChannelEvent>();
+        let (tx_2, rx_2) = mpsc::channel::<NotiEvent>(10);
+
+        let subscription = Subscription::new("People", "http://foo.bar", tx_0, rx_1, tx_2);
+
+        (tx_1, rx_0, rx_2, subscription)
+    }
+}

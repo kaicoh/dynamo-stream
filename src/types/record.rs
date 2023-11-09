@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Records {
     records: Vec<Record>,
@@ -28,8 +28,24 @@ impl Records {
     }
 
     #[cfg(test)]
-    pub fn into_inner(self) -> Vec<Record> {
+    pub fn includes<T: Into<String>>(&self, event_id: T) -> bool {
+        let event_id: String = event_id.into();
         self.records
+            .iter()
+            .find(|r| r.event_id() == event_id.as_str())
+            .is_some()
+    }
+}
+
+#[cfg(test)]
+impl<I, T> From<I> for Records
+where
+    I: IntoIterator<Item = T>,
+    T: Into<String>,
+{
+    fn from(values: I) -> Records {
+        let records = values.into_iter().map(Record::new).collect();
+        Records::new(records)
     }
 }
 
@@ -59,12 +75,8 @@ impl Record {
         }
     }
 
-    pub fn event_id(&self) -> Option<String> {
-        self.event_id.clone()
-    }
-
-    pub fn event_ids(records: Vec<Self>) -> Vec<String> {
-        records.iter().filter_map(Self::event_id).collect()
+    pub fn event_id(&self) -> &str {
+        self.event_id.as_ref().unwrap()
     }
 }
 
