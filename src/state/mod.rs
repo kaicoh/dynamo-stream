@@ -10,7 +10,7 @@ use subscription::Subscription;
 
 use std::collections::{hash_map::IterMut, HashMap};
 use std::fmt;
-use tokio::sync::mpsc::{Sender, error::SendError};
+use tokio::sync::mpsc::{error::SendError, Sender};
 
 #[derive(Debug)]
 pub enum ChannelEvent {

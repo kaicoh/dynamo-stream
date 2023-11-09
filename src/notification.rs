@@ -7,6 +7,7 @@ use tracing::{error, info};
 #[derive(Debug, Clone)]
 pub enum Event {
     Http { url: String, records: Records },
+    Error(String),
 }
 
 impl Event {
@@ -17,11 +18,18 @@ impl Event {
         }
     }
 
+    pub fn error<T: Into<String>>(message: T) -> Self {
+        Event::Error(message.into())
+    }
+
     async fn notify(self) -> Result<()> {
         match self {
             Event::Http { url, records } => {
                 info!("Http Notification Event to {url}");
                 info!("{:#?}", records);
+            }
+            Event::Error(message) => {
+                error!("Something went wrong. You have to notify to subscriber: {message}");
             }
         }
 

@@ -9,7 +9,7 @@ use tokio::sync::{
 };
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub struct Subscription {
@@ -63,12 +63,13 @@ impl Subscription {
 
             let mut shards = match client.get_shards(&table_name).await {
                 Ok(output) => output.shards,
-                Err(err) => {
+                Err(error) => {
                     let event = ChannelEvent::Error {
                         message: format!("Failed to get shards. table_name: {table_name}"),
-                        error: anyhow::Error::from(err),
+                        error,
                     };
                     oneshot_send(event);
+                    notify_err(notifier).await;
                     return;
                 }
             };
@@ -79,6 +80,7 @@ impl Subscription {
                     error: anyhow::anyhow!("Empty shards"),
                 };
                 oneshot_send(event);
+                notify_err(notifier).await;
                 return;
             }
 
@@ -94,6 +96,7 @@ impl Subscription {
                     }
                     Err(TryRecvError::Closed) => {
                         error!("Oneshot channel is closed unexpectedly.");
+                        notify_err(notifier).await;
                         break;
                     }
                     _ => {}
@@ -101,12 +104,13 @@ impl Subscription {
 
                 let (records, next_shards) = match client.get_records(&shards).await {
                     Ok(output) => (output.records, output.shards),
-                    Err(err) => {
+                    Err(error) => {
                         let event = ChannelEvent::Error {
                             message: "Failed to get records".into(),
-                            error: anyhow::Error::from(err),
+                            error,
                         };
                         oneshot_send(event);
+                        notify_err(notifier).await;
                         break;
                     }
                 };
@@ -136,5 +140,12 @@ fn oneshot_sender(tx: oneshot::Sender<ChannelEvent>) -> impl FnOnce(ChannelEvent
         if let Err(err) = tx.send(event) {
             error!("{:#?}", err);
         }
+    }
+}
+
+async fn notify_err(tx: mpsc::Sender<NotiEvent>) {
+    let event = NotiEvent::error("Server error occurred. Stop subscription.");
+    if let Err(err) = tx.send(event).await {
+        error!("{:#?}", err);
     }
 }
