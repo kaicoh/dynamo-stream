@@ -1,18 +1,20 @@
 mod channel;
 mod entry;
+mod notification;
 mod subscription;
 
-use crate::stream::notification::Event as NotiEvent;
+use crate::{Event as NotiEvent, EventFactory as NotiEventFactory, Records};
 
 use super::EntryConfig;
 
 use channel::Channel;
 pub use entry::{Entry, EntryState, EntryStatus};
+use notification::Notification;
 use subscription::Subscription;
 
 use std::collections::{hash_map::IterMut, HashMap};
 use std::fmt;
-use tokio::sync::mpsc::{error::SendError, Sender};
+use tokio::sync::mpsc::Sender;
 use ulid::Ulid;
 
 #[derive(Debug)]
@@ -30,14 +32,6 @@ impl fmt::Display for ChannelEvent {
             ChannelEvent::Closed => write!(f, "CLOSED"),
             ChannelEvent::Error { .. } => write!(f, "ERROR"),
         }
-    }
-}
-
-impl From<SendError<NotiEvent>> for ChannelEvent {
-    fn from(error: SendError<NotiEvent>) -> ChannelEvent {
-        let message = format!("Failed to send notification event: {error}");
-        let error = anyhow::Error::from(error);
-        ChannelEvent::Error { message, error }
     }
 }
 

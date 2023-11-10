@@ -3,6 +3,10 @@
 Extract dynamodb stream and send it anywhere you like.
 You can configure what table to subscribe and where to send dynamodb stream records.
 
+## Docker image
+
+You can use docker image from [this link](https://hub.docker.com/r/kaicoh/dynamo-stream).
+
 ## How to use
 
 Set environment variable `DYNAMODB_ENDPOINT_URL` and start the server. The following is an example using docker compose.
@@ -13,7 +17,7 @@ version: "3"
 
 services:
   stream:
-    image: kaicoh/dynamo-stream:v0.1.0
+    image: kaicoh/dynamo-stream:latest
     ports:
       - 3000:3000
     environment:
@@ -50,7 +54,7 @@ version: "3"
 
 services:
   stream:
-    image: kaicoh/dynamo-stream:v0.0.1
+    image: kaicoh/dynamo-stream:latest
     ports:
       - 3000:3000
 
@@ -58,7 +62,7 @@ services:
     # Mount your configuration file to docker container
     #####################################################
     volumes:
-      - ./configs/init.yml:/app/configs/config.yml
+      - ./configs/config.yml:/app/configs/config.yml
 
     environment:
       - DYNAMODB_ENDPOINT_URL=http://db:8000

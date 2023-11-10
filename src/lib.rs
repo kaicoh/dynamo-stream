@@ -6,6 +6,7 @@ mod web;
 
 use config::EntryConfig;
 use std::sync::{Arc, Mutex};
+use stream::{EventFactory, Records};
 
 pub use config::Config;
 pub use state::AppState;

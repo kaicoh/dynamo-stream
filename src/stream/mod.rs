@@ -5,7 +5,8 @@ mod types;
 use crate::{state::EntryStatus, utils::from_guard, SharedState};
 
 pub use client::DynamodbClient;
-pub use notification::{start, Event};
+pub use notification::{start, Event, EventFactory};
+pub use types::Records;
 
 use anyhow::Result;
 use client::Client;

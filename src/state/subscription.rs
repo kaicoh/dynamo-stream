@@ -1,6 +1,6 @@
 use crate::stream::client::Client;
 
-use super::{ChannelEvent, NotiEvent};
+use super::{ChannelEvent, NotiEvent, Notification};
 
 use std::sync::Arc;
 use tokio::sync::{
@@ -59,6 +59,7 @@ impl Subscription {
         let notifier = self.notifier.take().expect("notifier is None");
 
         tokio::spawn(async move {
+            let noti = Notification::new(&table_name, &url, notifier);
             let oneshot_send = oneshot_sender(tx);
 
             let mut shards = match client.get_shards(&table_name).await {
@@ -69,7 +70,6 @@ impl Subscription {
                         error,
                     };
                     oneshot_send(event);
-                    notify_err(notifier).await;
                     return;
                 }
             };
@@ -80,7 +80,7 @@ impl Subscription {
                     error: anyhow::anyhow!("Empty shards"),
                 };
                 oneshot_send(event);
-                notify_err(notifier).await;
+                notify_error(&noti).await;
                 return;
             }
 
@@ -96,7 +96,7 @@ impl Subscription {
                     }
                     Err(TryRecvError::Closed) => {
                         error!("Oneshot channel is closed unexpectedly.");
-                        notify_err(notifier).await;
+                        notify_error(&noti).await;
                         break;
                     }
                     _ => {}
@@ -110,16 +110,18 @@ impl Subscription {
                             error,
                         };
                         oneshot_send(event);
-                        notify_err(notifier).await;
+                        notify_error(&noti).await;
                         break;
                     }
                 };
 
                 if !records.is_empty() {
-                    let event = NotiEvent::http(&url, records);
-
-                    if let Err(err) = notifier.send(event).await {
-                        oneshot_send(err.into());
+                    if let Err(error) = noti.send_records(records).await {
+                        let event = ChannelEvent::Error {
+                            message: format!("Failed to send notification event: {error}"),
+                            error,
+                        };
+                        oneshot_send(event);
                         break;
                     }
                 }
@@ -143,9 +145,8 @@ fn oneshot_sender(tx: oneshot::Sender<ChannelEvent>) -> impl FnOnce(ChannelEvent
     }
 }
 
-async fn notify_err(tx: mpsc::Sender<NotiEvent>) {
-    let event = NotiEvent::error("Server error occurred. Stop subscription.");
-    if let Err(err) = tx.send(event).await {
+async fn notify_error(noti: &Notification) {
+    if let Err(err) = noti.send_error().await {
         error!("{:#?}", err);
     }
 }
@@ -154,6 +155,7 @@ async fn notify_err(tx: mpsc::Sender<NotiEvent>) {
 mod tests {
     use super::*;
     use crate::stream::client::{RecordsSource, ShardsSource, SourceClient};
+    use crate::stream::notification::Payload;
     use std::sync::Mutex;
 
     #[tokio::test]
@@ -183,9 +185,17 @@ mod tests {
 
         let opt = noti.recv().await;
         assert!(opt.is_some());
-        match opt.unwrap() {
-            NotiEvent::Http { url, records } => {
-                assert_eq!(url, "http://foo.bar");
+
+        let NotiEvent {
+            table_name,
+            url,
+            payload,
+        } = opt.unwrap();
+        assert_eq!(table_name, "People");
+        assert_eq!(url, "http://foo.bar");
+
+        match payload {
+            Payload::Records(records) => {
                 assert_eq!(records.len(), 2);
                 assert!(records.includes("record_0"));
                 assert!(records.includes("record_1"));
@@ -229,9 +239,17 @@ mod tests {
 
         let opt = noti.recv().await;
         assert!(opt.is_some());
-        match opt.unwrap() {
-            NotiEvent::Http { url, records } => {
-                assert_eq!(url, "http://foo.bar");
+
+        let NotiEvent {
+            table_name,
+            url,
+            payload,
+        } = opt.unwrap();
+        assert_eq!(table_name, "People");
+        assert_eq!(url, "http://foo.bar");
+
+        match payload {
+            Payload::Records(records) => {
                 assert_eq!(records.len(), 2);
                 assert!(records.includes("record_0"));
                 assert!(records.includes("record_1"));
@@ -243,9 +261,17 @@ mod tests {
 
         let opt = noti.recv().await;
         assert!(opt.is_some());
-        match opt.unwrap() {
-            NotiEvent::Http { url, records } => {
-                assert_eq!(url, "http://foo.bar");
+
+        let NotiEvent {
+            table_name,
+            url,
+            payload,
+        } = opt.unwrap();
+        assert_eq!(table_name, "People");
+        assert_eq!(url, "http://foo.bar");
+
+        match payload {
+            Payload::Records(records) => {
                 assert_eq!(records.len(), 3);
                 assert!(records.includes("record_2"));
                 assert!(records.includes("record_3"));
@@ -288,8 +314,17 @@ mod tests {
 
         let opt = noti.recv().await;
         assert!(opt.is_some());
-        match opt.unwrap() {
-            NotiEvent::Error(message) => {
+
+        let NotiEvent {
+            table_name,
+            url,
+            payload,
+        } = opt.unwrap();
+        assert_eq!(table_name, "People");
+        assert_eq!(url, "http://foo.bar");
+
+        match payload {
+            Payload::Error(message) => {
                 assert_eq!(message, "Server error occurred. Stop subscription.");
             }
             _ => {
@@ -357,8 +392,17 @@ mod tests {
 
         let opt = noti.recv().await;
         assert!(opt.is_some());
-        match opt.unwrap() {
-            NotiEvent::Error(message) => {
+
+        let NotiEvent {
+            table_name,
+            url,
+            payload,
+        } = opt.unwrap();
+        assert_eq!(table_name, "People");
+        assert_eq!(url, "http://foo.bar");
+
+        match payload {
+            Payload::Error(message) => {
                 assert_eq!(message, "Server error occurred. Stop subscription.");
             }
             _ => {
