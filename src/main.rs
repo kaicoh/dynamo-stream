@@ -1,4 +1,4 @@
-use dynamo_stream::{routes::root, AppState, DynamodbClient, Event, ENV_DYNAMODB_ENDPOINT_URL};
+use dynamo_stream::{routes::root, AppState, Config, DynamodbClient, Event};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -14,15 +14,15 @@ async fn main() {
     let subscriber = FmtSubscriber::new();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let endpoint_url = std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok();
+    let config = Config::new();
     let client = DynamodbClient::builder()
         .await
-        .endpoint_url(endpoint_url)
+        .endpoint_url(config.endpoint_url())
         .build();
 
     let (tx, rx) = mpsc::channel::<Event>(100);
 
-    let state = Arc::new(Mutex::new(AppState::new(tx)));
+    let state = Arc::new(Mutex::new(AppState::new(tx, config.entries())));
     let shared_state = Arc::clone(&state);
 
     tokio::spawn(async move {
@@ -55,7 +55,7 @@ async fn main() {
             ),
     );
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port()));
     info!("listening on {addr}");
 
     axum::Server::bind(&addr)

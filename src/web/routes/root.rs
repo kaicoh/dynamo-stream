@@ -216,7 +216,7 @@ mod tests {
 
     fn build_state() -> SharedState {
         let (tx, _rx) = mpsc::channel::<_>(10);
-        let mut state = AppState::new(tx.clone());
+        let mut state = AppState::new(tx.clone(), vec![]);
         let entry = Entry::new("People", "http://test.com", tx);
         state.insert("entry_0", entry);
         Arc::new(Mutex::new(state))

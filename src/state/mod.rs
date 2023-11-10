@@ -4,6 +4,8 @@ mod subscription;
 
 use crate::stream::notification::Event as NotiEvent;
 
+use super::EntryConfig;
+
 use channel::Channel;
 pub use entry::{Entry, EntryState, EntryStatus};
 use subscription::Subscription;
@@ -11,6 +13,7 @@ use subscription::Subscription;
 use std::collections::{hash_map::IterMut, HashMap};
 use std::fmt;
 use tokio::sync::mpsc::{error::SendError, Sender};
+use ulid::Ulid;
 
 #[derive(Debug)]
 pub enum ChannelEvent {
@@ -45,11 +48,17 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(notifier: Sender<NotiEvent>) -> Self {
-        Self {
-            notifier,
-            entries: HashMap::new(),
+    pub fn new(notifier: Sender<NotiEvent>, configs: Vec<EntryConfig>) -> Self {
+        let mut entries: HashMap<String, Entry> = HashMap::new();
+
+        for config in configs {
+            let id = Ulid::new().to_string();
+            let notifier = notifier.clone();
+            let entry = Entry::from_conf(config, notifier);
+            entries.insert(id, entry);
         }
+
+        Self { notifier, entries }
     }
 
     pub fn get_notifier(&self) -> Sender<NotiEvent> {

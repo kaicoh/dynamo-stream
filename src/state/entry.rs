@@ -1,5 +1,6 @@
 use crate::stream::client::Client;
 
+use super::super::EntryConfig;
 use super::{Channel, ChannelEvent, NotiEvent, Subscription};
 
 use serde::Serialize;
@@ -50,6 +51,11 @@ impl Entry {
             channel,
             subscription,
         }
+    }
+
+    pub fn from_conf(conf: EntryConfig, notifier: mpsc::Sender<NotiEvent>) -> Self {
+        let EntryConfig { table_name, url } = conf;
+        Self::new(table_name, url, notifier)
     }
 
     pub fn table_name(&self) -> &str {
