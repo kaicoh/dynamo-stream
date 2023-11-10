@@ -94,7 +94,7 @@ $ curl -s http://localhost:3000 | jq .
 {
   "01HEWN8M2PVGCA1R8SAY735E9S": {
     "table_name": "People",
-    "url": "http://localhost:9000",
+    "url": "http://localhost:9000/stream",
     "status": "RUNNING"
   }
 }
@@ -102,7 +102,7 @@ $ curl -s http://localhost:3000 | jq .
 
 ### Environment variables
 
-The environment variables this app can recognizes are the followings.
+The environment variables this app can recognize are the followings.
 
 | name | value |
 ----|----
@@ -124,6 +124,20 @@ If any errors occur while the subscription, dynamo-stream sends the error messag
 {
    "table_name": "People"
    "message": "Something went wrong and the subscription to the table is discarded.",
+}
+```
+
+The details of the error are emitted to the logs of dynamo-stream server, and you can also confirm the subscription status via http request.
+
+```
+$ curl -s http://localhost:3000 | jq .
+{
+  "01HEWN8M2PVGCA1R8SAY735E9S": {
+    "table_name": "People",
+    "url": "http://localhost:9000/stream",
+    "status": "ERROR",
+    "error": "Any error messages are here"
+  }
 }
 ```
 
