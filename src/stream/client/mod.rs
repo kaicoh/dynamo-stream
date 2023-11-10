@@ -2,7 +2,7 @@ mod dynamodb;
 #[cfg(test)]
 mod mock;
 
-use crate::types::{Record, Records, Shards};
+use super::types::{Record, Records, Shards};
 
 use anyhow::Result;
 use axum::async_trait;

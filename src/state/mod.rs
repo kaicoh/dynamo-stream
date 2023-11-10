@@ -2,7 +2,7 @@ mod channel;
 mod entry;
 mod subscription;
 
-use crate::notification::Event as NotiEvent;
+use crate::stream::notification::Event as NotiEvent;
 
 use channel::Channel;
 pub use entry::{Entry, EntryState, EntryStatus};

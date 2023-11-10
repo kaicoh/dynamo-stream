@@ -1,7 +1,7 @@
-use crate::types::Records;
-use tokio::sync::mpsc::Receiver;
+use super::types::Records;
 
 use anyhow::Result;
+use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
 #[derive(Debug, Clone)]

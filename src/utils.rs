@@ -1,7 +1,3 @@
-mod http;
-
-pub use http::HttpError;
-
 use std::sync::{MutexGuard, PoisonError};
 use tracing::error;
 

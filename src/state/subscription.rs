@@ -1,4 +1,4 @@
-use crate::client::Client;
+use crate::stream::client::Client;
 
 use super::{ChannelEvent, NotiEvent};
 
@@ -153,7 +153,7 @@ async fn notify_err(tx: mpsc::Sender<NotiEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::{RecordsSource, ShardsSource, SourceClient};
+    use crate::stream::client::{RecordsSource, ShardsSource, SourceClient};
     use std::sync::Mutex;
 
     #[tokio::test]

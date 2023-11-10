@@ -1,4 +1,4 @@
-use crate::client::Client;
+use crate::stream::client::Client;
 
 use super::{Channel, ChannelEvent, NotiEvent, Subscription};
 

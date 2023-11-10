@@ -1,4 +1,4 @@
-use crate::error::HttpError;
+use crate::web::error::HttpError;
 
 use axum::{
     async_trait,

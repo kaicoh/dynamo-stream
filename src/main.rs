@@ -1,8 +1,4 @@
-use dynamo_stream::{
-    notification::{self, Event},
-    routes::root,
-    AppState, DynamodbClient, ENV_DYNAMODB_ENDPOINT_URL,
-};
+use dynamo_stream::{routes::root, AppState, DynamodbClient, Event, ENV_DYNAMODB_ENDPOINT_URL};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -30,7 +26,7 @@ async fn main() {
     let shared_state = Arc::clone(&state);
 
     tokio::spawn(async move {
-        if let Err(err) = notification::start(rx).await {
+        if let Err(err) = dynamo_stream::start_notification(rx).await {
             error!("Unexpected error from notification process.");
             error!("{:#?}", err);
         }
