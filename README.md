@@ -118,7 +118,7 @@ And you can also use any other variables that AWS SDK uses, like `AWS_ACCESS_KEY
 
 ## Subscription payload
 
-When the dynamo-stream get records form dynamodb stream, it sends that records via http POST request with JSON payload. The format of the payload is the same of what the actual AWS Dynamodb stream sends to any other AWS services.
+When the dynamo-stream get records form dynamodb stream, it sends that records via http POST request with JSON payload. The format of the payload is the same of what the actual AWS Dynamodb stream sends to any other AWS services [like this](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb-example.html#with-dbb-invoke-manually).
 
 ### When something went wrong
 
