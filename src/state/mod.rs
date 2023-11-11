@@ -1,15 +1,13 @@
 mod channel;
 mod entry;
-mod notification;
 mod subscription;
 
-use crate::{Event as NotiEvent, EventFactory as NotiEventFactory, Records};
+use crate::notification::Event as NotiEvent;
 
 use super::EntryConfig;
 
 use channel::Channel;
 pub use entry::{Entry, EntryState, EntryStatus};
-use notification::Notification;
 use subscription::Subscription;
 
 use std::collections::{hash_map::IterMut, HashMap};

@@ -1,6 +1,7 @@
+use crate::notification::{Event as NotiEvent, Notification};
 use crate::stream::client::Client;
 
-use super::{ChannelEvent, NotiEvent, Notification};
+use super::ChannelEvent;
 
 use std::sync::Arc;
 use tokio::sync::{
@@ -116,7 +117,7 @@ impl Subscription {
                 };
 
                 if !records.is_empty() {
-                    if let Err(error) = noti.send_records(records).await {
+                    if let Err(error) = noti.send(records).await {
                         let event = ChannelEvent::Error {
                             message: format!("Failed to send notification event: {error}"),
                             error,
@@ -146,7 +147,7 @@ fn oneshot_sender(tx: oneshot::Sender<ChannelEvent>) -> impl FnOnce(ChannelEvent
 }
 
 async fn notify_error(noti: &Notification) {
-    if let Err(err) = noti.send_error().await {
+    if let Err(err) = noti.send("Server error occurred. Stop subscription.").await {
         error!("{:#?}", err);
     }
 }
@@ -154,8 +155,8 @@ async fn notify_error(noti: &Notification) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notification::Payload;
     use crate::stream::client::{RecordsSource, ShardsSource, SourceClient};
-    use crate::stream::notification::Payload;
     use std::sync::Mutex;
 
     #[tokio::test]
