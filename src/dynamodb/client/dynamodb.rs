@@ -1,22 +1,18 @@
 use super::{
-    Client, GetIteratorOutput, GetRecordsOutput,
-    GetShardsOutput, GetStreamArnOutput,
-    Records, Record, Shard,
+    Client, GetIteratorOutput, GetRecordsOutput, GetShardsOutput, GetStreamArnOutput, Record,
+    Records, Shard,
 };
 
 use anyhow::Result;
-use axum::async_trait;
 use aws_sdk_dynamodb::{config::Builder as DbConfigBuilder, Client as DbClient};
 use aws_sdk_dynamodbstreams::{
     config::Builder as StreamConfigBuilder,
     error::SdkError,
-    operation::{
-        get_records::GetRecordsError,
-        get_shard_iterator::GetShardIteratorError,
-    },
+    operation::{get_records::GetRecordsError, get_shard_iterator::GetShardIteratorError},
     types::{ShardIteratorType, StreamDescription},
     Client as StreamClient,
 };
+use axum::async_trait;
 use tracing::warn;
 
 #[derive(Debug, Clone)]
@@ -81,10 +77,8 @@ impl Client for DynamodbClient {
             .shard_iterator_type(ShardIteratorType::Latest)
             .send()
             .await
-            .map(|output| {
-                GetIteratorOutput {
-                    iterator: output.shard_iterator,
-                }
+            .map(|output| GetIteratorOutput {
+                iterator: output.shard_iterator,
             })
             .or_else(from_get_iterator_err)
     }
@@ -105,12 +99,19 @@ impl Client for DynamodbClient {
                     .into();
                 let next_iterator = output.next_shard_iterator;
 
-                GetRecordsOutput { records, next_iterator }
+                GetRecordsOutput {
+                    records,
+                    next_iterator,
+                }
             })
             .or_else(from_get_records_err)
     }
 
-    async fn get_shards(&self, stream_arn: &str, exclusive_shard_id: Option<String>) -> Result<GetShardsOutput> {
+    async fn get_shards(
+        &self,
+        stream_arn: &str,
+        exclusive_shard_id: Option<String>,
+    ) -> Result<GetShardsOutput> {
         self.stream_client
             .describe_stream()
             .stream_arn(stream_arn)
@@ -118,7 +119,11 @@ impl Client for DynamodbClient {
             .send()
             .await
             .map_err(anyhow::Error::from)
-            .and_then(|output| output.stream_description.ok_or(anyhow::anyhow!("Stream Description is None")))
+            .and_then(|output| {
+                output
+                    .stream_description
+                    .ok_or(anyhow::anyhow!("Stream Description is None"))
+            })
             .map(|output| {
                 let StreamDescription {
                     stream_status,
@@ -178,8 +183,8 @@ fn from_get_iterator_err(err: SdkError<GetShardIteratorError>) -> Result<GetIter
                 }
                 _ => Err(anyhow::Error::from(e)),
             }
-        },
-        _ => Err(anyhow::Error::from(err))
+        }
+        _ => Err(anyhow::Error::from(err)),
     }
 }
 
@@ -192,14 +197,20 @@ fn from_get_records_err(err: SdkError<GetRecordsError>) -> Result<GetRecordsOutp
             match e {
                 // Close shard if response is one of ExpiredIterator, LimitExceeded
                 // ResourceNotFound and TrimmedDataAccess.
-                ExpiredIteratorException(_) | LimitExceededException(_) | ResourceNotFoundException(_) | TrimmedDataAccessException(_) => {
+                ExpiredIteratorException(_)
+                | LimitExceededException(_)
+                | ResourceNotFoundException(_)
+                | TrimmedDataAccessException(_) => {
                     warn!("GetRecords operation failed due to {e}");
                     warn!("{:#?}", e);
-                    Ok(GetRecordsOutput { records: Records::new(), next_iterator: None })
+                    Ok(GetRecordsOutput {
+                        records: Records::new(),
+                        next_iterator: None,
+                    })
                 }
                 _ => Err(anyhow::Error::from(e)),
             }
-        },
-        _ => Err(anyhow::Error::from(err))
+        }
+        _ => Err(anyhow::Error::from(err)),
     }
 }

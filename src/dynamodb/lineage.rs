@@ -1,8 +1,4 @@
-use super::{
-    client::Client,
-    shard::Shard,
-    types::Records,
-};
+use super::{client::Client, shard::Shard, types::Records};
 
 use async_recursion::async_recursion;
 use std::sync::Arc;
@@ -73,11 +69,7 @@ impl Lineage {
     }
 
     #[async_recursion]
-    pub async fn get_records(
-        self,
-        client: Arc<dyn Client>,
-        tx: Sender<(Option<Shard>, Records)>,
-    ) {
+    pub async fn get_records(self, client: Arc<dyn Client>, tx: Sender<(Option<Shard>, Records)>) {
         let Lineage { shard, children } = self;
 
         let result = shard

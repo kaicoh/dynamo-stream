@@ -56,16 +56,14 @@ impl Stream for DynamodbStream {
         shards.append(&mut self.shards);
 
         let lineages = Lineages::from(shards);
-        let (mut records, mut shards) = lineages
-            .get_records(self.client())
-            .await;
+        let (mut records, mut shards) = lineages.get_records(self.client()).await;
 
         // Refresh shards
         // 1. Get shards which the stream doesn't have.
         let new_shards = get_all_shards(self.client(), &self.arn)
             .await?
             .into_iter()
-            .filter(|shard| shards.iter().find(|s| s.id() == shard.id()).is_none())
+            .filter(|shard| !shards.iter().any(|s| s.id() == shard.id()))
             .collect::<Vec<Shard>>();
 
         // 2. Set iterators to new shards.
@@ -164,9 +162,10 @@ fn not_set_field(field: &str) -> anyhow::Error {
 }
 
 async fn get_all_shards(client: Arc<dyn Client>, stream_arn: &str) -> Result<Vec<Shard>> {
-    let GetShardsOutput { mut shards, mut last_shard_id } = client
-        .get_shards(stream_arn, None)
-        .await?;
+    let GetShardsOutput {
+        mut shards,
+        mut last_shard_id,
+    } = client.get_shards(stream_arn, None).await?;
 
     while last_shard_id.is_some() {
         let mut output = client.get_shards(stream_arn, last_shard_id.take()).await?;
@@ -177,7 +176,11 @@ async fn get_all_shards(client: Arc<dyn Client>, stream_arn: &str) -> Result<Vec
     Ok(shards)
 }
 
-async fn set_shard_iterators(client: Arc<dyn Client>, stream_arn: &str, shards: Vec<Shard>) -> Vec<Shard> {
+async fn set_shard_iterators(
+    client: Arc<dyn Client>,
+    stream_arn: &str,
+    shards: Vec<Shard>,
+) -> Vec<Shard> {
     let mut output: Vec<Shard> = vec![];
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Shard>(shards.len());
 

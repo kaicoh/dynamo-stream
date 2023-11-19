@@ -50,8 +50,8 @@ impl From<types::AttributeValue> for AttributeValue {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{into_chrono, into_item};
+    use super::*;
     use aws_sdk_dynamodbstreams::primitives;
     use chrono::{DateTime, Utc};
 

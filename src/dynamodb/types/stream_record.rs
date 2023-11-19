@@ -42,7 +42,10 @@ impl PartialOrd for StreamRecord {
 
 impl Ord for StreamRecord {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self.sequence_number.as_ref(), other.sequence_number.as_ref()) {
+        match (
+            self.sequence_number.as_ref(),
+            other.sequence_number.as_ref(),
+        ) {
             (Some(n), Some(m)) => n.as_str().cmp(m.as_str()),
             (None, Some(_)) => Ordering::Greater,
             (Some(_), None) => Ordering::Less,

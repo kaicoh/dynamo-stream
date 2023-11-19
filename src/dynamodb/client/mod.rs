@@ -1,7 +1,7 @@
 mod dynamodb;
 
 use super::shard::Shard;
-use super::types::{Records, Record};
+use super::types::{Record, Records};
 
 use anyhow::Result;
 use axum::async_trait;
@@ -32,6 +32,10 @@ pub struct GetStreamArnOutput {
 pub trait Client: Send + Sync {
     async fn get_iterator(&self, stream_arn: &str, shard_id: &str) -> Result<GetIteratorOutput>;
     async fn get_records(&self, iterator: &str) -> Result<GetRecordsOutput>;
-    async fn get_shards(&self, arn: &str, exclusive_shard_id: Option<String>) -> Result<GetShardsOutput>;
+    async fn get_shards(
+        &self,
+        arn: &str,
+        exclusive_shard_id: Option<String>,
+    ) -> Result<GetShardsOutput>;
     async fn get_stream_arn(&self, table: &str) -> Result<GetStreamArnOutput>;
 }

@@ -3,7 +3,10 @@ use super::{event::Event, Records};
 use anyhow::Result;
 use axum::async_trait;
 use tokio::{
-    sync::{oneshot::{self, error::TryRecvError}, watch},
+    sync::{
+        oneshot::{self, error::TryRecvError},
+        watch,
+    },
     time::{sleep, Duration},
 };
 use tracing::{error, info};
@@ -41,26 +44,38 @@ pub trait Stream: Send + Sync {
         loop {
             match self.iterate().await {
                 Ok(records) => {
-                    if let Err(_) = self.tx_records().send(records) {
-                        info!("All record receivers are gone. Stop streaming from \"{}\" table.", self.table_name());
+                    if self.tx_records().send(records).is_err() {
+                        info!(
+                            "All record receivers are gone. Stop streaming from \"{}\" table.",
+                            self.table_name()
+                        );
                         return;
                     }
-                },
+                }
                 Err(err) => {
-                    error!("Failed to iterate. Stop streaming from \"{}\" table.", self.table_name());
+                    error!(
+                        "Failed to iterate. Stop streaming from \"{}\" table.",
+                        self.table_name()
+                    );
                     self.send_event(Event::Error(err));
                     return;
-                },
+                }
             }
 
             match self.rx_event().try_recv() {
-                Err(TryRecvError::Empty) => {},
+                Err(TryRecvError::Empty) => {}
                 Ok(_) => {
-                    info!("Received an event to stop streaming. Stop streaming from \"{}\" table.", self.table_name());
+                    info!(
+                        "Received an event to stop streaming. Stop streaming from \"{}\" table.",
+                        self.table_name()
+                    );
                     return;
                 }
                 Err(err) => {
-                    error!("Failed to receive events. Stop streaming from \"{}\" table.", self.table_name());
+                    error!(
+                        "Failed to receive events. Stop streaming from \"{}\" table.",
+                        self.table_name()
+                    );
                     self.send_event(Event::Error(anyhow::Error::new(err)));
                     return;
                 }

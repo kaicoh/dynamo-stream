@@ -1,9 +1,4 @@
-use super::{
-    client::Client,
-    lineage::Lineage,
-    shard::Shard,
-    types::Records,
-};
+use super::{client::Client, lineage::Lineage, shard::Shard, types::Records};
 
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -22,8 +17,7 @@ impl Lineages {
     pub fn has(&self, shard_id: &str) -> bool {
         self.lineages
             .iter()
-            .find(|lineage| lineage.has(Some(shard_id)))
-            .is_some()
+            .any(|lineage| lineage.has(Some(shard_id)))
     }
 
     pub fn set_shard(&mut self, shard: Shard) {
@@ -194,10 +188,7 @@ mod tests {
         let s4 = Shard::new("4", Some("3"));
         let s5 = Shard::new("5", Some("3"));
 
-        for shards in [s0, s1, s2, s3, s4, s5]
-            .into_iter()
-            .permutations(6)
-        {
+        for shards in [s0, s1, s2, s3, s4, s5].into_iter().permutations(6) {
             assert_eq!(shards.len(), 6);
 
             let lineages = shards_to_lineages(shards);
@@ -218,6 +209,10 @@ mod tests {
     }
 
     fn get_child(lineage: &Lineage, shard_id: &str) -> Option<Lineage> {
-        lineage.children.iter().find(|l| l.shard_id() == shard_id).cloned()
+        lineage
+            .children
+            .iter()
+            .find(|l| l.shard_id() == shard_id)
+            .cloned()
     }
 }

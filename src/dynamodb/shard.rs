@@ -30,11 +30,7 @@ impl Shard {
         self.parent.as_deref()
     }
 
-    pub async fn set_iterator(
-        &mut self,
-        client: Arc<dyn Client>,
-        stream_arn: &str,
-    ) -> Result<()> {
+    pub async fn set_iterator(&mut self, client: Arc<dyn Client>, stream_arn: &str) -> Result<()> {
         let output = client.get_iterator(stream_arn, self.id()).await?;
         self.iterator = output.iterator;
         Ok(())
@@ -45,17 +41,16 @@ impl Shard {
             Some(iterator) => {
                 let GetRecordsOutput {
                     records,
-                    next_iterator
+                    next_iterator,
                 } = client.get_records(iterator).await?;
 
-                let shard = next_iterator
-                    .map(|iterator| Shard {
-                        iterator: Some(iterator),
-                        ..self
-                    });
+                let shard = next_iterator.map(|iterator| Shard {
+                    iterator: Some(iterator),
+                    ..self
+                });
 
                 Ok((shard, records))
-            },
+            }
             None => Ok((None, Records::new())),
         }
     }
