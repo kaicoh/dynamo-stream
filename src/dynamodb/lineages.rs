@@ -10,20 +10,6 @@ pub struct Lineages {
 }
 
 impl Lineages {
-    pub fn len(&self) -> usize {
-        self.lineages.len()
-    }
-
-    pub fn has(&self, shard_id: &str) -> bool {
-        self.lineages
-            .iter()
-            .any(|lineage| lineage.has(Some(shard_id)))
-    }
-
-    pub fn set_shard(&mut self, shard: Shard) {
-        push_shard_to_lineages(&mut self.lineages, shard);
-    }
-
     pub async fn get_records(self, client: Arc<dyn Client>) -> (Records, Vec<Shard>) {
         let mut records = Records::new();
         let mut shards: Vec<Shard> = vec![];
@@ -59,44 +45,26 @@ impl From<Vec<Shard>> for Lineages {
     fn from(shards: Vec<Shard>) -> Self {
         Self {
             shard_len: shards.len(),
-            lineages: shards_to_lineages(shards),
+            lineages: shards.into_iter().fold(vec![], push_shard),
         }
     }
 }
 
-fn shards_to_lineages(shards: Vec<Shard>) -> Vec<Lineage> {
-    let mut lineages: Vec<Lineage> = vec![];
-
-    for shard in shards {
-        push_shard_to_lineages(&mut lineages, shard);
-    }
-
-    lineages
-}
-
-fn push_shard_to_lineages(lineages: &mut Vec<Lineage>, shard: Shard) {
-    // Group lineages into children of the shard and its ramainings.
-    let (children, remains): (Vec<Lineage>, Vec<Lineage>) = lineages
-        .clone()
+fn push_shard(lineages: Vec<Lineage>, shard: Shard) -> Vec<Lineage> {
+    let (children, mut lineages): (Vec<Lineage>, Vec<Lineage>) = lineages
         .into_iter()
         .partition(|lineage| lineage.is_child(shard.id()));
-
-    *lineages = remains;
 
     let mut lineage = Lineage::new(shard.clone());
     lineage.set_children(children);
 
-    // Search the lineage which the shard should belong to
-    if let Some(ancestor) = lineages
-        .iter_mut()
-        .find(|lineage| lineage.has(shard.parent()))
-    {
-        // Set as a descendant of an ancestor lineage
+    if let Some(ancestor) = lineages.iter_mut().find(|l| l.has(shard.parent())) {
         ancestor.set_descendant(&lineage);
     } else {
-        // Add as new and independant lineage
         lineages.push(lineage);
     }
+
+    lineages
 }
 
 #[cfg(test)]
@@ -206,6 +174,10 @@ mod tests {
             assert!(l4.is_some());
             assert!(l5.is_some());
         }
+    }
+
+    fn shards_to_lineages(shards: Vec<Shard>) -> Vec<Lineage> {
+        shards.into_iter().fold(vec![], push_shard)
     }
 
     fn get_child(lineage: &Lineage, shard_id: &str) -> Option<Lineage> {
