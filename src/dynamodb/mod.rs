@@ -5,4 +5,4 @@ mod shard;
 mod stream;
 pub mod types;
 
-use super::channel::{Event, Stream};
+use super::channel::{Event, HandleEvent, Stream};

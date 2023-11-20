@@ -3,7 +3,7 @@ use super::{
     lineages::Lineages,
     shard::Shard,
     types::Records,
-    Event, Stream,
+    Event, HandleEvent, Stream,
 };
 
 use anyhow::Result;
@@ -32,18 +32,20 @@ impl DynamodbStream {
     }
 }
 
-#[async_trait]
-impl Stream for DynamodbStream {
-    fn table_name(&self) -> &str {
-        self.table.as_str()
-    }
-
+impl HandleEvent for DynamodbStream {
     fn tx_event(&mut self) -> Option<oneshot::Sender<Event>> {
         self.tx_event.take()
     }
 
     fn rx_event(&mut self) -> &mut oneshot::Receiver<Event> {
         &mut self.rx_event
+    }
+}
+
+#[async_trait]
+impl Stream for DynamodbStream {
+    fn table_name(&self) -> &str {
+        self.table.as_str()
     }
 
     fn tx_records(&self) -> &watch::Sender<Records> {

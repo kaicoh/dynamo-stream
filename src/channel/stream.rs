@@ -1,46 +1,28 @@
-use super::{event::Event, Records};
+use super::{
+    event::{Event, HandleEvent, TryRecvResult},
+    Records,
+};
 
 use anyhow::Result;
 use axum::async_trait;
 use tokio::{
-    sync::{
-        oneshot::{self, error::TryRecvError},
-        watch,
-    },
+    sync::watch,
     time::{sleep, Duration},
 };
 use tracing::{error, info};
 
 /// A stream should have one opponent and communicate each other.
 #[async_trait]
-pub trait Stream: Send + Sync {
+pub trait Stream: HandleEvent + Send + Sync {
     fn table_name(&self) -> &str;
-
-    /// Get event sender. If the result is None, the sender is already consumes by `send` method.
-    fn tx_event(&mut self) -> Option<oneshot::Sender<Event>>;
-
-    /// Get event receiver.
-    fn rx_event(&mut self) -> &mut oneshot::Receiver<Event>;
 
     /// Get records sender.
     fn tx_records(&self) -> &watch::Sender<Records>;
 
     async fn iterate(&mut self) -> Result<Records>;
 
-    /// Send event to the opponent. Calling this method means stopping stream because the sender is
-    /// an oneshot sender.
-    fn send_event(&mut self, event: Event) {
-        if let Err(err) = self
-            .tx_event()
-            .expect("Stream doesn't have oneshot event sender.")
-            .send(event)
-        {
-            error!("{:#?}", err);
-        }
-    }
-
     /// Start streaming.
-    async fn start(&mut self, interval: Option<u64>) {
+    async fn start_streaming(&mut self, interval: Option<u64>) {
         loop {
             match self.iterate().await {
                 Ok(records) => {
@@ -62,21 +44,21 @@ pub trait Stream: Send + Sync {
                 }
             }
 
-            match self.rx_event().try_recv() {
-                Err(TryRecvError::Empty) => {}
-                Ok(_) => {
+            match self.try_recv_event() {
+                TryRecvResult::Empty => {}
+                TryRecvResult::Received(_) => {
                     info!(
                         "Received an event to stop streaming. Stop streaming from \"{}\" table.",
                         self.table_name()
                     );
                     return;
                 }
-                Err(err) => {
+                TryRecvResult::Error(err) => {
                     error!(
                         "Failed to receive events. Stop streaming from \"{}\" table.",
                         self.table_name()
                     );
-                    self.send_event(Event::Error(anyhow::Error::new(err)));
+                    self.send_event(Event::Error(err));
                     return;
                 }
             }
