@@ -6,6 +6,8 @@ use super::types::{Record, Records};
 use anyhow::Result;
 use axum::async_trait;
 
+pub use dynamodb::DynamodbClient;
+
 #[derive(Debug)]
 pub struct GetIteratorOutput {
     pub iterator: Option<String>,

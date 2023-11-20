@@ -1,3 +1,5 @@
+mod builder;
+
 use super::{
     client::{Client, GetShardsOutput},
     lineages::Lineages,
@@ -11,6 +13,8 @@ use axum::async_trait;
 use std::sync::Arc;
 use tokio::sync::{oneshot, watch};
 use tracing::error;
+
+pub use builder::{DynamodbStreamBuilder, DynamodbStreamHalf};
 
 pub struct DynamodbStream {
     client: Arc<dyn Client>,
@@ -78,89 +82,6 @@ impl Stream for DynamodbStream {
         records.sort();
         Ok(records)
     }
-}
-
-#[derive(Default)]
-pub struct DynamodbStreamBuilder {
-    client: Option<Arc<dyn Client>>,
-    table: Option<String>,
-    tx_event: Option<oneshot::Sender<Event>>,
-    rx_event: Option<oneshot::Receiver<Event>>,
-    tx_records: Option<watch::Sender<Records>>,
-}
-
-impl DynamodbStreamBuilder {
-    pub fn new() -> Self {
-        Self {
-            client: None,
-            table: None,
-            tx_event: None,
-            rx_event: None,
-            tx_records: None,
-        }
-    }
-
-    pub fn set_client(self, client: Arc<dyn Client>) -> Self {
-        Self {
-            client: Some(client),
-            ..self
-        }
-    }
-
-    pub fn set_table<T: Into<String>>(self, table: T) -> Self {
-        Self {
-            table: Some(table.into()),
-            ..self
-        }
-    }
-
-    pub fn set_event_sender(self, tx: oneshot::Sender<Event>) -> Self {
-        Self {
-            tx_event: Some(tx),
-            ..self
-        }
-    }
-
-    pub fn set_event_receiver(self, rx: oneshot::Receiver<Event>) -> Self {
-        Self {
-            rx_event: Some(rx),
-            ..self
-        }
-    }
-
-    pub fn set_records_sender(self, tx: watch::Sender<Records>) -> Self {
-        Self {
-            tx_records: Some(tx),
-            ..self
-        }
-    }
-
-    pub async fn build(self) -> Result<DynamodbStream> {
-        let client = self.client.ok_or(not_set_field("client"))?;
-        let table = self.table.ok_or(not_set_field("table"))?;
-        let tx_event = self.tx_event.ok_or(not_set_field("tx_event"))?;
-        let rx_event = self.rx_event.ok_or(not_set_field("rx_event"))?;
-        let tx_records = self.tx_records.ok_or(not_set_field("tx_records"))?;
-
-        let arn = client.get_stream_arn(&table).await?.stream_arn;
-
-        let shards = get_all_shards(Arc::clone(&client), &arn).await?;
-        let shards = set_shard_iterators(Arc::clone(&client), &arn, shards).await;
-
-        Ok(DynamodbStream {
-            client,
-            arn,
-            table,
-            tx_event: Some(tx_event),
-            rx_event,
-            tx_records,
-            shards,
-        })
-    }
-}
-
-fn not_set_field(field: &str) -> anyhow::Error {
-    anyhow::anyhow!("\"{field}\" is not set to DynamodbStreamBuilder")
 }
 
 async fn get_all_shards(client: Arc<dyn Client>, stream_arn: &str) -> Result<Vec<Shard>> {

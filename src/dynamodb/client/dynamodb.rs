@@ -21,6 +21,12 @@ pub struct DynamodbClient {
     stream_client: StreamClient,
 }
 
+impl DynamodbClient {
+    pub async fn builder() -> DynamodbClientBuilder {
+        DynamodbClientBuilder::new().await
+    }
+}
+
 #[derive(Debug)]
 pub struct DynamodbClientBuilder {
     db_builder: DbConfigBuilder,
@@ -126,9 +132,6 @@ impl Client for DynamodbClient {
             })
             .map(|output| {
                 let StreamDescription {
-                    stream_status,
-                    stream_view_type,
-                    table_name,
                     shards,
                     last_evaluated_shard_id,
                     ..
