@@ -44,14 +44,25 @@ impl AppState {
             })
     }
 
-    pub fn add_sub(&mut self, sub: Subscription) {
-        self.subscriptions.push(sub);
-    }
+    pub fn add_sub(&mut self, table: String, url: String) -> Destination {
+        let url = url.as_str();
 
-    pub fn add_listener(&mut self, table: String, url: String) -> Option<Destination> {
         self.sub(&table)
             .as_mut()
             .map(|sub| Destination::from(sub.set_listener(url)))
+            .unwrap_or_else(|| {
+                let client = Arc::new(self.client.clone());
+
+                let mut sub = Subscription::builder()
+                    .set_client(client)
+                    .set_table(&table)
+                    .build();
+                let dest = sub.set_listener(url);
+
+                self.subscriptions.push(sub);
+
+                Destination::from(dest)
+            })
     }
 
     pub fn remove_listener(&mut self, table: String, id: String) {

@@ -1,7 +1,6 @@
 use super::super::{Client, DynamodbStream, Stream};
 use super::*;
 
-use anyhow::Result;
 use std::sync::Arc;
 
 #[derive(Default)]
@@ -29,7 +28,7 @@ impl SubscriptionBuilder {
         }
     }
 
-    pub async fn build(self) -> Result<Subscription> {
+    pub fn build(self) -> Subscription {
         assert!(self.client.is_some(), "\"client\" is not set");
         assert!(self.table.is_some(), "\"table\" is not set");
 
@@ -39,18 +38,17 @@ impl SubscriptionBuilder {
         let (mut stream, stream_half) = DynamodbStream::builder()
             .set_client(client)
             .set_table(&table)
-            .build()
-            .await?;
+            .build();
 
         tokio::spawn(async move {
             stream.start_streaming(Some(3)).await;
         });
 
-        Ok(Subscription {
+        Subscription {
             table,
             destinations: HashMap::new(),
             stream_half,
             listener_halfs: HashMap::new(),
-        })
+        }
     }
 }

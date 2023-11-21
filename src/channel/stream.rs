@@ -21,8 +21,19 @@ pub trait Stream: HandleEvent + Send + Sync {
 
     async fn iterate(&mut self) -> Result<Records>;
 
+    /// You can overwrite this method to implement initialization before iterating.
+    async fn init(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     /// Start streaming.
     async fn start_streaming(&mut self, interval: Option<u64>) {
+        if let Err(err) = self.init().await {
+            error!("Failed to initialize stream. Skip starting streaming: {err}");
+            error!("{:#?}", err);
+            return;
+        }
+
         loop {
             match self.iterate().await {
                 Ok(records) => {

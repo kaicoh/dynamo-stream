@@ -1,7 +1,7 @@
 mod error;
 mod extractor;
 mod listener;
-mod route;
+pub mod route;
 mod state;
 mod subscription;
 

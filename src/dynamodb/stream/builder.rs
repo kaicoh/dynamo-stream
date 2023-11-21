@@ -28,14 +28,9 @@ impl DynamodbStreamBuilder {
         }
     }
 
-    pub async fn build(self) -> Result<(DynamodbStream, DynamodbStreamHalf)> {
-        let client = self.client.ok_or(not_set_field("client"))?;
-        let table = self.table.ok_or(not_set_field("table"))?;
-
-        let arn = client.get_stream_arn(&table).await?.stream_arn;
-
-        let shards = get_all_shards(Arc::clone(&client), &arn).await?;
-        let shards = set_shard_iterators(Arc::clone(&client), &arn, shards).await;
+    pub fn build(self) -> (DynamodbStream, DynamodbStreamHalf) {
+        let client = self.client.expect("\"client\" is not set");
+        let table = self.table.expect("\"table\" is not set");
 
         let (tx0, rx0) = oneshot::channel::<Event>();
         let (tx1, rx1) = oneshot::channel::<Event>();
@@ -43,12 +38,12 @@ impl DynamodbStreamBuilder {
 
         let stream = DynamodbStream {
             client,
-            arn,
+            arn: "".into(),
             table,
             tx_event: Some(tx0),
             rx_event: rx1,
             tx_records: tx2,
-            shards,
+            shards: vec![],
         };
 
         let half = DynamodbStreamHalf {
@@ -57,12 +52,8 @@ impl DynamodbStreamBuilder {
             rx_records: rx2,
         };
 
-        Ok((stream, half))
+        (stream, half)
     }
-}
-
-fn not_set_field(field: &str) -> anyhow::Error {
-    anyhow::anyhow!("\"{field}\" is not set to DynamodbStreamBuilder")
 }
 
 #[derive(Debug)]

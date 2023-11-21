@@ -56,6 +56,17 @@ impl Stream for DynamodbStream {
         &self.tx_records
     }
 
+    async fn init(&mut self) -> Result<()> {
+        let arn = self.client.get_stream_arn(&self.table).await?.stream_arn;
+        let shards = get_all_shards(Arc::clone(&self.client), &arn).await?;
+        let shards = set_shard_iterators(Arc::clone(&self.client), &arn, shards).await;
+
+        self.arn = arn;
+        self.shards = shards;
+
+        Ok(())
+    }
+
     async fn iterate(&mut self) -> Result<Records> {
         // Get records from current shards.
         let mut shards: Vec<Shard> = vec![];

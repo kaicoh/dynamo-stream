@@ -3,7 +3,6 @@ pub mod root;
 use super::{
     error::HttpError,
     extractor::{FromValidate, Json},
-    subscription::Subscription,
     SharedState,
 };
 

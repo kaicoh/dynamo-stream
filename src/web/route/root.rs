@@ -1,4 +1,4 @@
-use super::{from_guard, FromValidate, HttpError, Json, SharedState, Subscription};
+use super::{from_guard, FromValidate, HttpError, Json, SharedState};
 
 use axum::{
     extract::{Path, State},
@@ -46,32 +46,10 @@ async fn register(
 ) -> Result<impl IntoResponse, HttpError> {
     let EntryBody { table_name, url } = body;
 
-    let (client, new_sub) = {
-        let mut state = state.lock().map_err(from_guard)?;
-        (state.client(), !state.has_sub(&table_name))
-    };
-
-    let sub = if new_sub {
-        let sub = Subscription::builder()
-            .set_client(client)
-            .set_table(&table_name)
-            .build()
-            .await?;
-        Some(sub)
-    } else {
-        None
-    };
-
     let mut state = state.lock().map_err(from_guard)?;
+    let dest = state.add_sub(table_name, url);
 
-    if let Some(sub) = sub {
-        state.add_sub(sub);
-    }
-
-    state
-        .add_listener(table_name, url)
-        .ok_or(HttpError::NotFound("Subscription".to_owned()))
-        .map(response::Json)
+    Ok(response::Json(dest))
 }
 
 async fn deregister_url(
