@@ -33,23 +33,20 @@ impl DynamodbStreamBuilder {
         let table = self.table.expect("\"table\" is not set");
 
         let (tx0, rx0) = oneshot::channel::<Event>();
-        let (tx1, rx1) = oneshot::channel::<Event>();
-        let (tx2, rx2) = watch::channel(Records::new());
+        let (tx1, rx1) = watch::channel(Records::new());
 
         let stream = DynamodbStream {
             client,
             arn: "".into(),
             table,
-            tx_event: Some(tx0),
-            rx_event: rx1,
-            tx_records: tx2,
+            rx_event: rx0,
+            tx_records: tx1,
             shards: vec![],
         };
 
         let half = DynamodbStreamHalf {
-            tx_event: Some(tx1),
-            rx_event: rx0,
-            rx_records: rx2,
+            tx_event: Some(tx0),
+            rx_records: rx1,
         };
 
         (stream, half)
@@ -59,7 +56,6 @@ impl DynamodbStreamBuilder {
 #[derive(Debug)]
 pub struct DynamodbStreamHalf {
     tx_event: Option<oneshot::Sender<Event>>,
-    rx_event: oneshot::Receiver<Event>,
     rx_records: watch::Receiver<Records>,
 }
 
@@ -69,13 +65,9 @@ impl DynamodbStreamHalf {
     }
 }
 
-impl HandleEvent for DynamodbStreamHalf {
+impl SenderHalf for DynamodbStreamHalf {
     fn tx_event(&mut self) -> Option<oneshot::Sender<Event>> {
         self.tx_event.take()
-    }
-
-    fn rx_event(&mut self) -> &mut oneshot::Receiver<Event> {
-        &mut self.rx_event
     }
 }
 

@@ -1,5 +1,5 @@
 use super::{
-    event::{Event, HandleEvent, TryRecvResult},
+    event::{ReceiverHalf, TryRecvResult},
     Records,
 };
 
@@ -13,7 +13,7 @@ use tracing::{error, info};
 
 /// A stream should have one opponent and communicate each other.
 #[async_trait]
-pub trait Stream: HandleEvent + Send + Sync {
+pub trait Stream: ReceiverHalf + Send + Sync {
     fn table_name(&self) -> &str;
 
     /// Get records sender.
@@ -47,10 +47,9 @@ pub trait Stream: HandleEvent + Send + Sync {
                 }
                 Err(err) => {
                     error!(
-                        "Failed to iterate. Stop streaming from \"{}\" table.",
+                        "Failed to iterate. Stop streaming from \"{}\" table: {err}",
                         self.table_name()
                     );
-                    self.send_event(Event::Error(err));
                     return;
                 }
             }
@@ -66,10 +65,9 @@ pub trait Stream: HandleEvent + Send + Sync {
                 }
                 TryRecvResult::Error(err) => {
                     error!(
-                        "Failed to receive events. Stop streaming from \"{}\" table.",
+                        "Failed to receive events. Stop streaming from \"{}\" table: {err}",
                         self.table_name()
                     );
-                    self.send_event(Event::Error(err));
                     return;
                 }
             }

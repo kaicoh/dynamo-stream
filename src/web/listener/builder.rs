@@ -32,18 +32,15 @@ impl ListenerBuilder {
             .expect("\"rx_records\" is not set to ListenerBuilder");
 
         let (tx0, rx0) = oneshot::channel::<Event>();
-        let (tx1, rx1) = oneshot::channel::<Event>();
 
         let listener = Listener {
             url,
-            tx_event: Some(tx0),
-            rx_event: rx1,
+            rx_event: rx0,
             rx_records: rx,
         };
 
         let half = ListenerHalf {
-            tx_event: Some(tx1),
-            rx_event: rx0,
+            tx_event: Some(tx0),
         };
 
         (listener, half)
@@ -53,16 +50,11 @@ impl ListenerBuilder {
 #[derive(Debug)]
 pub struct ListenerHalf {
     tx_event: Option<oneshot::Sender<Event>>,
-    rx_event: oneshot::Receiver<Event>,
 }
 
-impl HandleEvent for ListenerHalf {
+impl SenderHalf for ListenerHalf {
     fn tx_event(&mut self) -> Option<oneshot::Sender<Event>> {
         self.tx_event.take()
-    }
-
-    fn rx_event(&mut self) -> &mut oneshot::Receiver<Event> {
-        &mut self.rx_event
     }
 }
 

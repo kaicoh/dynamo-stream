@@ -5,7 +5,7 @@ use super::{
     lineages::Lineages,
     shard::Shard,
     types::Records,
-    Event, HandleEvent, Stream,
+    Event, ReceiverHalf, SenderHalf, Stream,
 };
 
 use anyhow::Result;
@@ -20,7 +20,6 @@ pub struct DynamodbStream {
     client: Arc<dyn Client>,
     arn: String,
     table: String,
-    tx_event: Option<oneshot::Sender<Event>>,
     rx_event: oneshot::Receiver<Event>,
     tx_records: watch::Sender<Records>,
     shards: Vec<Shard>,
@@ -36,11 +35,7 @@ impl DynamodbStream {
     }
 }
 
-impl HandleEvent for DynamodbStream {
-    fn tx_event(&mut self) -> Option<oneshot::Sender<Event>> {
-        self.tx_event.take()
-    }
-
+impl ReceiverHalf for DynamodbStream {
     fn rx_event(&mut self) -> &mut oneshot::Receiver<Event> {
         &mut self.rx_event
     }

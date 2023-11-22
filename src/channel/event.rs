@@ -4,7 +4,6 @@ use tracing::error;
 #[derive(Debug)]
 pub enum Event {
     Close,
-    Error(anyhow::Error),
 }
 
 #[derive(Debug)]
@@ -14,12 +13,23 @@ pub enum TryRecvResult {
     Error(anyhow::Error),
 }
 
-pub trait HandleEvent {
-    /// Get event sender. If the result is None, the sender is already consumes by `send` method.
-    fn tx_event(&mut self) -> Option<Sender<Event>>;
-
+pub trait ReceiverHalf {
     /// Get event receiver.
     fn rx_event(&mut self) -> &mut Receiver<Event>;
+
+    /// Recieve event and return result with wrapper enum.
+    fn try_recv_event(&mut self) -> TryRecvResult {
+        match self.rx_event().try_recv() {
+            Ok(event) => TryRecvResult::Received(event),
+            Err(TryRecvError::Empty) => TryRecvResult::Empty,
+            Err(err) => TryRecvResult::Error(anyhow::Error::new(err)),
+        }
+    }
+}
+
+pub trait SenderHalf {
+    /// Get event sender. If the result is None, the sender is already consumes by `send` method.
+    fn tx_event(&mut self) -> Option<Sender<Event>>;
 
     /// Send event to the opponent. Calling this method means stopping stream because the sender is
     /// an oneshot sender.
@@ -30,15 +40,6 @@ pub trait HandleEvent {
             .send(event)
         {
             error!("{:#?}", err);
-        }
-    }
-
-    /// Recieve event and return result with wrapper enum.
-    fn try_recv_event(&mut self) -> TryRecvResult {
-        match self.rx_event().try_recv() {
-            Ok(event) => TryRecvResult::Received(event),
-            Err(TryRecvError::Empty) => TryRecvResult::Empty,
-            Err(err) => TryRecvResult::Error(anyhow::Error::new(err)),
         }
     }
 }

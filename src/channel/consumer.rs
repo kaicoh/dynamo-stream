@@ -1,5 +1,5 @@
 use super::{
-    event::{Event, HandleEvent, TryRecvResult},
+    event::{ReceiverHalf, TryRecvResult},
     Records,
 };
 
@@ -8,7 +8,7 @@ use tokio::sync::watch;
 use tracing::{error, info, warn};
 
 #[async_trait]
-pub trait Consumer: HandleEvent + Send + Sync {
+pub trait Consumer: ReceiverHalf + Send + Sync {
     fn identifier(&self) -> &str;
 
     /// Get records receiver.
@@ -33,7 +33,7 @@ pub trait Consumer: HandleEvent + Send + Sync {
                         "Failed to detect watch channel changes. This means the sender of this channel has been dropped. Stop consuming: \"{}\".",
                         self.identifier()
                     );
-                    self.send_event(Event::Error(anyhow::Error::new(err)));
+                    warn!("{:#?}", err);
                     return;
                 }
             }
@@ -52,7 +52,7 @@ pub trait Consumer: HandleEvent + Send + Sync {
                         "Failed to receive events. Stop consuming: \"{}\".",
                         self.identifier()
                     );
-                    self.send_event(Event::Error(err));
+                    error!("{:#?}", err);
                     return;
                 }
             }

@@ -6,7 +6,7 @@ pub mod route;
 mod state;
 mod subscription;
 
-use super::channel::{Consumer, Event, HandleEvent, Stream};
+use super::channel::{Consumer, Event, ReceiverHalf, SenderHalf, Stream};
 use super::dynamodb::{
     client::{Client, DynamodbClient},
     stream::{DynamodbStream, DynamodbStreamHalf},

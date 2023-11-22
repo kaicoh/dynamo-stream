@@ -1,6 +1,6 @@
 mod builder;
 
-use super::{Consumer, Event, HandleEvent, Records};
+use super::{Consumer, Event, ReceiverHalf, Records, SenderHalf};
 
 use axum::async_trait;
 use tokio::sync::{oneshot, watch};
@@ -11,7 +11,6 @@ pub use builder::{ListenerBuilder, ListenerHalf};
 #[derive(Debug)]
 pub struct Listener {
     url: String,
-    tx_event: Option<oneshot::Sender<Event>>,
     rx_event: oneshot::Receiver<Event>,
     rx_records: watch::Receiver<Records>,
 }
@@ -22,11 +21,7 @@ impl Listener {
     }
 }
 
-impl HandleEvent for Listener {
-    fn tx_event(&mut self) -> Option<oneshot::Sender<Event>> {
-        self.tx_event.take()
-    }
-
+impl ReceiverHalf for Listener {
     fn rx_event(&mut self) -> &mut oneshot::Receiver<Event> {
         &mut self.rx_event
     }
