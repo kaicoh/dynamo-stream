@@ -54,12 +54,11 @@ async fn register(
 
 async fn deregister_url(
     State(state): State<SharedState>,
-    Path(table): Path<String>,
-    Path(id): Path<String>,
+    Path((table, id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, HttpError> {
     let mut state = state.lock().map_err(from_guard)?;
     state.remove_listener(table, id);
-    Ok((StatusCode::NO_CONTENT, "No content"))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn unsubscribe_table(
@@ -68,7 +67,7 @@ async fn unsubscribe_table(
 ) -> Result<impl IntoResponse, HttpError> {
     let mut state = state.lock().map_err(from_guard)?;
     state.remove_sub(table);
-    Ok((StatusCode::NO_CONTENT, "No content"))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub fn router(state: SharedState) -> Router {
