@@ -1,3 +1,4 @@
+mod config;
 mod error;
 mod extractor;
 mod listener;
@@ -11,5 +12,7 @@ use super::dynamodb::{
     stream::{DynamodbStream, DynamodbStreamHalf},
     types::Records,
 };
+use super::{ENV_CONFIG_PATH, ENV_DYNAMODB_ENDPOINT_URL, ENV_PORT};
 
+pub use config::Config;
 pub use state::{AppState, SharedState};

@@ -1,0 +1,5 @@
+entries:
+  - table_name: People
+    url: http://localhost:8888
+  - table_name: User
+    url: http://localhost:4000

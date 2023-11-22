@@ -1,20 +1,6 @@
-use super::{
-    subscription::{Destination, Subscription},
-    DynamodbClient,
-};
+use super::{Config, Destination, DynamodbClient, Subscription};
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
-
-pub type SharedState = Arc<Mutex<AppState>>;
-
-impl From<AppState> for SharedState {
-    fn from(state: AppState) -> Self {
-        Arc::new(Mutex::new(state))
-    }
-}
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -23,11 +9,22 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(client: DynamodbClient) -> Self {
-        Self {
+    pub async fn new(config: &Config) -> Self {
+        let client = DynamodbClient::builder()
+            .await
+            .endpoint_url(config.endpoint_url())
+            .build();
+
+        let mut state = Self {
             client,
             subscriptions: vec![],
+        };
+
+        for entry in config.entries() {
+            state.add_sub(entry.table_name, entry.url);
         }
+
+        state
     }
 
     pub fn client(&self) -> Arc<DynamodbClient> {

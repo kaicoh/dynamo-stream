@@ -1,7 +1,4 @@
-use dynamo_stream::{
-    web::{route::root, AppState, SharedState},
-    DynamodbClient, ENV_DYNAMODB_ENDPOINT_URL,
-};
+use dynamo_stream::web::{route::root, AppState, Config, SharedState};
 use std::net::SocketAddr;
 use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
@@ -15,12 +12,8 @@ async fn main() {
     let subscriber = FmtSubscriber::new();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let client = DynamodbClient::builder()
-        .await
-        .endpoint_url(std::env::var(ENV_DYNAMODB_ENDPOINT_URL).ok())
-        .build();
-
-    let state: SharedState = AppState::new(client).into();
+    let config = Config::new();
+    let state: SharedState = AppState::new(&config).await.into();
 
     let app = root::router(state).layer(
         TraceLayer::new_for_http()
@@ -38,7 +31,7 @@ async fn main() {
             ),
     );
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port()));
     info!("listening on {addr}");
 
     axum::Server::bind(&addr)
