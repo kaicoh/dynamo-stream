@@ -96,11 +96,12 @@ And you can also confirm current state via http request.
 ```
 $ curl -s http://localhost:3000 | jq .
 {
-  "01HEWN8M2PVGCA1R8SAY735E9S": {
-    "table_name": "People",
-    "url": "http://localhost:9000/stream",
-    "status": "RUNNING"
-  }
+  "People": [
+    {
+      "id": "01HFVQS31XVYF5S6BFWTBTCQ6S",
+      "url": "http://localhost:9000"
+    }
+  ]
 }
 ```
 
@@ -119,31 +120,6 @@ And you can also use any other variables that AWS SDK uses, like `AWS_ACCESS_KEY
 ## Subscription payload
 
 When the dynamo-stream get records form dynamodb stream, it sends that records via http POST request with JSON payload. The format of the payload is the same of what the actual AWS Dynamodb stream sends to any other AWS services [like this](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb-example.html#with-dbb-invoke-manually).
-
-### When something went wrong
-
-If any errors occur while the subscription, dynamo-stream sends the error message to the destination url and quit the subscription. The error message payload is following.
-
-```
-{
-   "table_name": "People"
-   "message": "Something went wrong and the subscription to the table is discarded.",
-}
-```
-
-The details of the error are emitted to the logs of dynamo-stream server, and you can also confirm the subscription status via http request.
-
-```
-$ curl -s http://localhost:3000 | jq .
-{
-  "01HEWN8M2PVGCA1R8SAY735E9S": {
-    "table_name": "People",
-    "url": "http://localhost:9000/stream",
-    "status": "ERROR",
-    "error": "Any error messages are here"
-  }
-}
-```
 
 ## License
 

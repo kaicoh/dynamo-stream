@@ -1,6 +1,6 @@
 [package]
 name = "dynamo-stream"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2021"
 
 [[bin]]
@@ -15,9 +15,10 @@ bench = false
 
 [dependencies]
 anyhow = "1.0"
-aws-config = "0.57.1"
-aws-sdk-dynamodb = "0.35.0"
-aws-sdk-dynamodbstreams = "0.35.0"
+async-recursion = "1.0"
+aws-config = "0.57.2"
+aws-sdk-dynamodb = "0.36"
+aws-sdk-dynamodbstreams = "0.36"
 axum = "0.6"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.11", features = ["json"] }
@@ -34,4 +35,5 @@ validator = { version = "0.16", features = ["derive"] }
 
 [dev-dependencies]
 hyper = "0.14"
+itertools = "0.12"
 tower = "0.4"
