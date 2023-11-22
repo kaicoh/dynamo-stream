@@ -116,7 +116,8 @@ async fn set_shard_iterators(
     shards: Vec<Shard>,
 ) -> Vec<Shard> {
     let mut output: Vec<Shard> = vec![];
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Shard>(shards.len());
+    let buf_size = channel_size(&shards);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Shard>(buf_size);
 
     for mut shard in shards {
         let client = Arc::clone(&client);
@@ -146,4 +147,12 @@ async fn set_shard_iterators(
     }
 
     output
+}
+
+fn channel_size(shards: &[Shard]) -> usize {
+    if shards.is_empty() {
+        1
+    } else {
+        shards.len()
+    }
 }

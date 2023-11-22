@@ -39,11 +39,11 @@ impl Subscription {
         let url: String = url.into();
         let id = Ulid::new().to_string();
 
-        if self.has_dest(&id) {
+        if !self.has_dest(&id) {
             self.add_dest(&id, &url);
         }
 
-        if self.has_listener(&id) {
+        if !self.has_listener(&id) {
             self.add_listener(&id, &url);
         }
 
